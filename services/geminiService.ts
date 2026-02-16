@@ -17,7 +17,12 @@ export const getSearchKeywords = async (query: string): Promise<string[]> => {
       }
     });
 
-    return JSON.parse(response.text.trim());
+    const text = response.text;
+    if (!text) {
+      return [query.toLowerCase()];
+    }
+
+    return JSON.parse(text.trim());
   } catch (error) {
     console.error("Gemini Search Error:", error);
     return [query.toLowerCase()];
