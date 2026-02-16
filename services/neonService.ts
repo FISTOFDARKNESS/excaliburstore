@@ -2,9 +2,8 @@
 import { Asset, User, Category } from '../types';
 
 /**
- * Excalibur Storage Service (Puter Cloud Engine)
- * Prevents 404s by checking file status before reading and populates 
- * initial "Seed Data" for a premium first-time experience.
+ * Excalibur Storage Service (Puter Cloud Engine) - V4 Stable
+ * Focado em persistência total. O Seed Data nunca sobrescreve dados reais.
  */
 
 declare const puter: any;
@@ -14,10 +13,9 @@ const DB_PATH = 'Documents/ExcaliburStore/registry_v3.json';
 interface DatabaseSchema {
   assets: Asset[];
   users: User[];
-  comments: Record<string, any[]>;
 }
 
-// Premium Seed Data to make the site look populated on first load
+// Dados de exemplo APENAS para a primeira execução
 const getSeedData = (): DatabaseSchema => ({
   assets: [
     {
@@ -26,11 +24,11 @@ const getSeedData = (): DatabaseSchema => ({
       authorName: 'Excalibur_Dev',
       authorAvatar: 'https://ui-avatars.com/api/?name=Excalibur&background=000&color=fff',
       title: 'Advanced Vehicle Chassis v4',
-      description: 'A professional-grade vehicle system with realistic suspension, custom engine sounds, and mobile support. Optimized for high-performance racing games.',
+      description: 'Sistema profissional de veículos para Roblox.',
       category: Category.MODEL,
       thumbnailUrl: 'https://images.unsplash.com/photo-1544724569-5f546fd6f2b5?auto=format&fit=crop&q=80&w=800',
       fileType: '.rbxm',
-      fileData: '#', // Placeholder for seed
+      fileData: '#', 
       creditsRequired: false,
       likes: [],
       dislikes: [],
@@ -38,25 +36,6 @@ const getSeedData = (): DatabaseSchema => ({
       comments: [],
       downloadCount: 1240,
       timestamp: Date.now() - 86400000
-    },
-    {
-      id: 'seed_2',
-      userId: 'system',
-      authorName: 'NeonArchitect',
-      authorAvatar: 'https://ui-avatars.com/api/?name=Architect&background=3b82f6&color=fff',
-      title: 'Cyberpunk District Module',
-      description: 'A modular kit for building sci-fi environments. Includes neon signs, procedural pipes, and high-fidelity textures.',
-      category: Category.MAP,
-      thumbnailUrl: 'https://images.unsplash.com/photo-1605810230434-7631ac76ec81?auto=format&fit=crop&q=80&w=800',
-      fileType: '.rbxl',
-      fileData: '#',
-      creditsRequired: true,
-      likes: [],
-      dislikes: [],
-      reports: [],
-      comments: [],
-      downloadCount: 850,
-      timestamp: Date.now() - 172800000
     }
   ],
   users: [
@@ -68,19 +47,17 @@ const getSeedData = (): DatabaseSchema => ({
       provider: 'google',
       followers: [],
       following: [],
-      bio: 'The official archive account for premium Roblox assets.'
+      bio: 'Conta oficial do arquivo Excalibur.'
     }
-  ],
-  comments: {}
+  ]
 });
 
 async function readDb(): Promise<DatabaseSchema> {
   try {
-    // Check if file exists first to avoid browser 404 console errors
     const stats = await puter.fs.stat(DB_PATH).catch(() => null);
     
     if (!stats) {
-      console.log("Registry not found. Initializing with Seed Data.");
+      // SÓ entra aqui se o arquivo NUNCA foi criado
       const seed = getSeedData();
       await writeDb(seed);
       return seed;
@@ -90,22 +67,26 @@ async function readDb(): Promise<DatabaseSchema> {
     const text = await data.text();
     const parsed = JSON.parse(text);
     
-    // Safety check: Ensure assets is an array
-    if (!Array.isArray(parsed.assets)) return getSeedData();
-    
-    return parsed;
+    // Validação mínima para não corromper o estado se o arquivo estiver vazio
+    return {
+      assets: Array.isArray(parsed.assets) ? parsed.assets : [],
+      users: Array.isArray(parsed.users) ? parsed.users : []
+    };
   } catch (e) {
-    console.warn("Storage warning - fallback to seed:", e);
-    return getSeedData();
+    console.error("Erro na leitura do banco. Mantendo estado atual para evitar perda de dados.", e);
+    // Em caso de erro de leitura (ex: rede), retorna vazio em vez de resetar o arquivo
+    return { assets: [], users: [] };
   }
 }
 
 async function writeDb(db: DatabaseSchema): Promise<void> {
   try {
+    // Garante que o diretório existe
     await puter.fs.mkdir('Documents/ExcaliburStore', { recursive: true }).catch(() => null);
+    // Escrita atômica do JSON
     await puter.fs.write(DB_PATH, JSON.stringify(db, null, 2));
   } catch (e) {
-    console.error("Critical Storage Error:", e);
+    console.error("Erro crítico ao salvar dados:", e);
   }
 }
 
@@ -133,22 +114,22 @@ export const neonDb = {
 
   async saveAsset(asset: Asset) {
     const db = await readDb();
-    db.assets.unshift(asset); 
-    await writeDb(db);
+    // Verifica se já existe (evita duplicatas em recargas rápidas)
+    if (!db.assets.some(a => a.id === asset.id)) {
+      db.assets.unshift(asset); 
+      await writeDb(db);
+    }
   },
 
   async saveComment(comment: any, assetId: string) {
     const db = await readDb();
-    if (!db.comments[assetId]) db.comments[assetId] = [];
-    db.comments[assetId].unshift(comment);
-    
     const asset = db.assets.find(a => a.id === assetId);
     if (asset) {
       if (!asset.comments) asset.comments = [];
+      // Adiciona o comentário diretamente no asset dentro da lista principal
       asset.comments.unshift(comment);
+      await writeDb(db);
     }
-    
-    await writeDb(db);
   },
 
   async incrementDownload(assetId: string) {
