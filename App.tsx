@@ -106,13 +106,15 @@ export default function App() {
         neonDb.getAllAssets(),
         neonDb.getAllUsers()
       ]);
+      // Se houver erro ou retornar nulo, o catch abaixo preservará os dados atuais.
       setAssets(assetRes || []);
       setUsers(userRes || []);
+      setIsCloudLoaded(true);
     } catch (e) {
-      console.error("Sync error:", e);
+      console.error("Sync error - Mantendo dados locais:", e);
+      // NÃO limpamos as arrays aqui. Se falhar, os assets antigos continuam na tela.
     } finally {
       setIsSyncing(false);
-      setIsCloudLoaded(true);
     }
   };
 
@@ -237,7 +239,7 @@ export default function App() {
       setShowPublishModal(false);
       refreshData();
     } catch (e: any) {
-      alert("Upload failed. Please try again.");
+      alert("Falha no upload. Seus dados antigos estão seguros.");
     } finally {
       setIsUploading(false);
     }
@@ -261,7 +263,7 @@ export default function App() {
       setNewComment('');
       setAssets(prev => prev.map(a => a.id === assetId ? { ...a, comments: [comment, ...(a.comments || [])] } : a));
     } catch (e) {
-      alert("Comment failed to post.");
+      alert("Falha ao postar comentário.");
     }
   };
 
@@ -331,7 +333,7 @@ export default function App() {
 
               <div className="space-y-5 pb-32">
                 {filteredAssets.map(a => <AssetRow key={a.id} asset={a} onClick={a => setSelectedAssetId(a.id)} onDownload={handleDownload} onAuthorClick={uid => { setViewingUserId(uid); setActiveTab('profile'); }} />)}
-                {!isCloudLoaded && <div className="py-20 text-center animate-spin flex justify-center text-zinc-800"><Icons.Plus /></div>}
+                {!isCloudLoaded && !isSyncing && <div className="py-20 text-center animate-spin flex justify-center text-zinc-800"><Icons.Plus /></div>}
                 {isCloudLoaded && filteredAssets.length === 0 && (
                    <div className="py-20 text-center text-zinc-800 uppercase font-black text-[11px] tracking-widest">No entries found in archive.</div>
                 )}
