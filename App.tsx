@@ -446,9 +446,15 @@ export default function App() {
               following: []
             });
           }
+        },
+        itp_support: true, // Improved compatibility for ITP browsers
+        use_fedcm_for_prompt: false // Opt-out of FedCM to avoid NotAllowedError in sandboxes
+      });
+      (window as any).google?.accounts.id.prompt((notification: any) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            console.log('Google One Tap prompt skipped or blocked');
         }
       });
-      (window as any).google?.accounts.id.prompt();
     } else {
       const discordUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token&scope=identify`;
       window.location.href = discordUrl;
