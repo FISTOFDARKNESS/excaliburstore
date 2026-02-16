@@ -102,12 +102,14 @@ export default function App() {
   const refreshData = async () => {
     setIsSyncing(true);
     try {
+      // Fix: Fetch database records and cast to interfaces defined in types.ts
       const [assetRes, userRes] = await Promise.all([
         neonDb.getAllAssets(),
         neonDb.getAllUsers()
       ]);
-      if (assetRes) setAssets(assetRes);
-      if (userRes) setUsers(userRes);
+      // Fix: Use explicit type casting to satisfy the State Action types
+      if (assetRes) setAssets(assetRes as Asset[]);
+      if (userRes) setUsers(userRes as User[]);
     } catch (e) {
       console.error("Sync error:", e);
     } finally {
