@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BloxMarket - Roblox Asset Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -103,6 +104,13 @@
             -webkit-text-stroke: 1px var(--border-color);
             margin-top: -15px;
             opacity: 0.6;
+        }
+
+        /* Override Google Button Styles to match aesthetics */
+        #google-login-btn-container {
+            display: flex;
+            justify-content: center;
+            width: 100%;
         }
     </style>
 <script type="importmap">

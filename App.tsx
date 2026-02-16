@@ -4,6 +4,10 @@ import { Asset, User, Comment, Category } from './types';
 import { MOCK_ASSETS, MOCK_USERS, Icons } from './constants';
 import { getSearchKeywords } from './services/geminiService';
 
+// --- CONFIGURATION ---
+// REPLACE THIS WITH YOUR ACTUAL CLIENT ID FROM GOOGLE CLOUD CONSOLE
+const GOOGLE_CLIENT_ID = "YOUR_CLIENT_ID_HERE.apps.googleusercontent.com";
+
 // --- Helpers ---
 const getEmbedUrl = (url: string) => {
   if (!url) return null;
@@ -24,36 +28,67 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
+const parseJwt = (token: string) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+};
+
 // --- Components ---
 
-const LoginMenu = ({ onSelect, onClose }: { onSelect: (provider: 'google' | 'discord') => void, onClose: () => void }) => (
-  <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
-    <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={onClose} />
-    <div className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-[32px] p-8 space-y-6 shadow-2xl">
-      <div className="text-center space-y-2">
-        <h3 className="text-2xl font-black uppercase tracking-tight italic text-white">Select Identity</h3>
-        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Connect to Excalibur Network</p>
+const LoginMenu = ({ onClose, onGoogleSignIn, onDiscordMockSignIn }: { 
+  onClose: () => void, 
+  onGoogleSignIn: (response: any) => void,
+  onDiscordMockSignIn: () => void 
+}) => {
+  useEffect(() => {
+    // Initialize Google Sign-In button after component mounts
+    if (window.google) {
+      window.google.accounts.id.renderButton(
+        document.getElementById("google-login-btn-container"),
+        { theme: "outline", size: "large", width: "320", shape: "pill", text: "continue_with" }
+      );
+    }
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={onClose} />
+      <div className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-[32px] p-8 space-y-6 shadow-2xl">
+        <div className="text-center space-y-2">
+          <h3 className="text-2xl font-black uppercase tracking-tight italic text-white">Select Identity</h3>
+          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Connect to Excalibur Network</p>
+        </div>
+        <div className="space-y-4">
+          <div id="google-login-btn-container" className="flex justify-center transition-all hover:scale-105" />
+          
+          <div className="flex items-center gap-4 py-2">
+            <div className="h-[1px] flex-grow bg-white/5"></div>
+            <span className="text-[8px] font-black text-zinc-700 uppercase tracking-widest">OR</span>
+            <div className="h-[1px] flex-grow bg-white/5"></div>
+          </div>
+
+          <button 
+            onClick={onDiscordMockSignIn}
+            className="w-full bg-[#5865F2] text-white font-black uppercase py-3.5 rounded-full text-[11px] tracking-widest flex items-center justify-center gap-3 hover:scale-105 transition-all"
+          >
+            <img src="https://discord.com/favicon.ico" className="w-4 h-4" alt="" />
+            Continue with Discord
+          </button>
+        </div>
+        <button onClick={onClose} className="w-full text-[9px] text-zinc-600 font-black uppercase tracking-[0.2em] hover:text-white transition-colors">Cancel</button>
       </div>
-      <div className="space-y-3">
-        <button 
-          onClick={() => onSelect('google')}
-          className="w-full bg-white text-black font-black uppercase py-4 rounded-2xl text-[11px] tracking-widest flex items-center justify-center gap-3 hover:scale-105 transition-all"
-        >
-          <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="" />
-          Continue with Google
-        </button>
-        <button 
-          onClick={() => onSelect('discord')}
-          className="w-full bg-[#5865F2] text-white font-black uppercase py-4 rounded-2xl text-[11px] tracking-widest flex items-center justify-center gap-3 hover:scale-105 transition-all"
-        >
-          <img src="https://discord.com/favicon.ico" className="w-4 h-4" alt="" />
-          Continue with Discord
-        </button>
-      </div>
-      <button onClick={onClose} className="w-full text-[9px] text-zinc-600 font-black uppercase tracking-[0.2em] hover:text-white transition-colors">Cancel</button>
     </div>
-  </div>
-);
+  );
+};
 
 const Sidebar = ({ 
   activeTab, 
@@ -448,6 +483,17 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // Initialize Google Identity Services
+  useEffect(() => {
+    if (window.google) {
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleSignIn,
+        auto_select: false,
+      });
+    }
+  }, []);
+
   useEffect(() => {
     localStorage.setItem('blox_users', JSON.stringify(users));
   }, [users]);
@@ -461,13 +507,43 @@ export default function App() {
     localStorage.setItem('blox_theme', theme);
   }, [theme]);
 
-  const handleLogin = (provider: 'google' | 'discord') => {
+  const handleGoogleSignIn = (response: any) => {
+    const payload = parseJwt(response.credential);
+    if (!payload) {
+      console.error("Failed to decode JWT");
+      return;
+    }
+
+    // Check if user already exists in local list
+    const existingUser = users.find(u => u.id === payload.sub);
+    
+    if (existingUser) {
+      setCurrentUser(existingUser);
+    } else {
+      const newUser: User = {
+        id: payload.sub,
+        name: payload.name,
+        username: payload.email.split('@')[0],
+        avatar: payload.picture,
+        provider: 'google',
+        followers: [],
+        following: [],
+        bio: "Just joined BloxMarket!",
+        links: []
+      };
+      setUsers(prev => [...prev, newUser]);
+      setCurrentUser(newUser);
+    }
+    setShowLoginMenu(false);
+  };
+
+  const handleDiscordMockSignIn = () => {
     const mockUser: User = {
       id: 'u_' + Math.random().toString(36).substr(2, 5),
-      name: provider === 'google' ? 'Google Architect' : 'Discord Wizard',
-      username: provider === 'google' ? 'g_dev_2024' : 'd_wiz_rbx',
-      avatar: provider === 'google' ? 'https://picsum.photos/seed/g/200' : 'https://picsum.photos/seed/d/200',
-      provider: provider,
+      name: 'Discord Wizard',
+      username: 'd_wiz_rbx',
+      avatar: 'https://picsum.photos/seed/d/200',
+      provider: 'discord',
       followers: [],
       following: [],
       bio: "Mastering the Roblox metaverse one brick at a time.",
@@ -479,6 +555,9 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    if (window.google) {
+      window.google.accounts.id.disableAutoSelect();
+    }
     setCurrentUser(null);
     localStorage.removeItem('blox_user');
     setActiveTab('home');
@@ -883,7 +962,13 @@ export default function App() {
         />
       )}
 
-      {showLoginMenu && <LoginMenu onSelect={handleLogin} onClose={() => setShowLoginMenu(false)} />}
+      {showLoginMenu && (
+        <LoginMenu 
+          onClose={() => setShowLoginMenu(false)} 
+          onGoogleSignIn={handleGoogleSignIn}
+          onDiscordMockSignIn={handleDiscordMockSignIn}
+        />
+      )}
       {showPublishModal && <PublishModal onPublish={handlePublish} onClose={() => setShowPublishModal(false)} />}
     </div>
   );
