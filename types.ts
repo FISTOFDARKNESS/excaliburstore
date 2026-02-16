@@ -46,9 +46,9 @@ export interface Asset {
   description: string;
   category: Category;
   thumbnailUrl: string;
-  videoUrl?: string;
+  videoUrl?: string; // Campo opcional para vídeo
   fileType: '.rbxm' | '.rbxl' | '.rbxmx';
-  fileData?: string; 
+  fileData?: string; // Caminho do arquivo no Puter
   creditsRequired: boolean;
   likes: string[];
   dislikes: string[];
@@ -56,5 +56,5 @@ export interface Asset {
   comments: Comment[];
   downloadCount: number;
   timestamp: number;
-  verification?: VerificationData;
+  verification?: VerificationData; // Dados de verificação
 }

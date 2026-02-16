@@ -41,10 +41,23 @@ const checkFileStatus = async (): Promise<VerificationData> => {
 };
 
 const uploadToPuter = async (file: File): Promise<string> => {
-  // Usando puter.fs.write para salvar o arquivo no sistema do Puter
-  const path = `Documents/BloxMarket/${Date.now()}_${file.name}`;
-  await puter.fs.write(path, file);
-  return path;
+  try {
+    // O erro "Destination was not found" ocorre porque a pasta pai não existe.
+    // Criamos a pasta recursivamente (se o Puter suportar) ou garantimos o caminho.
+    try {
+        await puter.fs.mkdir('Documents/BloxMarket', { recursive: true });
+    } catch (dirErr) {
+        // Ignora se a pasta já existir
+        console.log("Diretório já existe ou erro ao criar:", dirErr);
+    }
+
+    const path = `Documents/BloxMarket/${Date.now()}_${file.name}`;
+    await puter.fs.write(path, file);
+    return path;
+  } catch (err: any) {
+    console.error("Erro interno no Puter FS:", err);
+    throw new Error(err.message || "Falha ao gravar arquivo no Puter.");
+  }
 };
 
 const downloadFromPuter = async (path: string, fileName: string) => {
@@ -59,7 +72,7 @@ const downloadFromPuter = async (path: string, fileName: string) => {
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
   } catch (error) {
-    alert("Falha ao ler arquivo do Puter FS.");
+    alert("Falha ao ler arquivo do Puter FS. Verifique se o arquivo ainda existe.");
   }
 };
 
@@ -165,7 +178,7 @@ const PublishModal = ({ onClose, onPublish, isUploading }: { onClose: () => void
             <div className="w-10 h-10 border-2 border-white/10 border-t-blue-500 rounded-full animate-spin" />
             <div className="space-y-1">
               <h2 className="text-lg font-bold text-white tracking-tight">Puter Cloud Sync</h2>
-              <p className="text-zinc-500 text-[8px] font-bold uppercase tracking-wider italic">Writing to puter.fs...</p>
+              <p className="text-zinc-500 text-[8px] font-bold uppercase tracking-wider italic">Garantindo estrutura no Puter.fs...</p>
             </div>
           </div>
         ) : (
@@ -214,9 +227,9 @@ const PublishModal = ({ onClose, onPublish, isUploading }: { onClose: () => void
 };
 
 export default function App() {
-  const [users, setUsers] = useState<User[]>(() => JSON.parse(localStorage.getItem('bx_users_v8') || JSON.stringify(MOCK_USERS)));
-  const [currentUser, setCurrentUser] = useState<User | null>(() => JSON.parse(localStorage.getItem('bx_cur_user_v8') || 'null'));
-  const [assets, setAssets] = useState<Asset[]>(() => JSON.parse(localStorage.getItem('bx_assets_v8') || JSON.stringify(MOCK_ASSETS)));
+  const [users, setUsers] = useState<User[]>(() => JSON.parse(localStorage.getItem('bx_users_v9') || JSON.stringify(MOCK_USERS)));
+  const [currentUser, setCurrentUser] = useState<User | null>(() => JSON.parse(localStorage.getItem('bx_cur_user_v9') || 'null'));
+  const [assets, setAssets] = useState<Asset[]>(() => JSON.parse(localStorage.getItem('bx_assets_v9') || JSON.stringify(MOCK_ASSETS)));
   const [activeTab, setActiveTab] = useState('home');
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [showLoginMenu, setShowLoginMenu] = useState(false);
@@ -226,9 +239,9 @@ export default function App() {
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('bx_users_v8', JSON.stringify(users));
-    localStorage.setItem('bx_cur_user_v8', JSON.stringify(currentUser));
-    localStorage.setItem('bx_assets_v8', JSON.stringify(assets));
+    localStorage.setItem('bx_users_v9', JSON.stringify(users));
+    localStorage.setItem('bx_cur_user_v9', JSON.stringify(currentUser));
+    localStorage.setItem('bx_assets_v9', JSON.stringify(assets));
   }, [users, currentUser, assets]);
 
   const handleGoogleSignIn = (response: any) => {
@@ -259,13 +272,10 @@ export default function App() {
     if (!currentUser) return;
     setIsUploading(true);
     try {
-      // Usando Puter.js para salvar o arquivo rbx
+      // Usando Puter.js para salvar o arquivo rbx - Agora com tratamento de pasta
       const rbxPath = await uploadToPuter(files.rbx);
       
-      // Para a thumbnail, em um app real você também salvaria no Puter, 
-      // aqui usaremos um ObjectURL temporário para demonstração (em produção, salvar no Puter e ler o blob)
       const thumbUrl = URL.createObjectURL(files.thumb);
-      
       const statusData = await checkFileStatus();
       
       const newAsset: Asset = {
@@ -277,7 +287,8 @@ export default function App() {
         description: files.data.desc || "Verified Puter Asset.",
         category: files.data.category,
         thumbnailUrl: thumbUrl,
-        fileData: rbxPath, // Guardamos o caminho do Puter
+        videoUrl: "", // Adicionado campo solicitado
+        fileData: rbxPath, 
         fileType: files.rbx.name.substring(files.rbx.name.lastIndexOf('.')) as any,
         creditsRequired: false,
         likes: [],
