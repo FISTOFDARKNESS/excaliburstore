@@ -6,7 +6,7 @@ import { getSearchKeywords } from './services/geminiService';
 
 // --- CONFIGURATION ---
 // REPLACE THIS WITH YOUR ACTUAL CLIENT ID FROM GOOGLE CLOUD CONSOLE
-const GOOGLE_CLIENT_ID = "YOUR_CLIENT_ID_HERE.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com";
 
 // --- Helpers ---
 const getEmbedUrl = (url: string) => {
@@ -51,8 +51,9 @@ const LoginMenu = ({ onClose, onGoogleSignIn, onDiscordMockSignIn }: {
 }) => {
   useEffect(() => {
     // Initialize Google Sign-In button after component mounts
-    if (window.google) {
-      window.google.accounts.id.renderButton(
+    // Fix: cast window to any to access the google property provided by the external Google Identity Services script
+    if ((window as any).google) {
+      (window as any).google.accounts.id.renderButton(
         document.getElementById("google-login-btn-container"),
         { theme: "outline", size: "large", width: "320", shape: "pill", text: "continue_with" }
       );
@@ -485,8 +486,9 @@ export default function App() {
 
   // Initialize Google Identity Services
   useEffect(() => {
-    if (window.google) {
-      window.google.accounts.id.initialize({
+    // Fix: cast window to any to access the google property provided by the external script to satisfy TypeScript
+    if ((window as any).google) {
+      (window as any).google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: handleGoogleSignIn,
         auto_select: false,
@@ -555,8 +557,9 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    if (window.google) {
-      window.google.accounts.id.disableAutoSelect();
+    // Fix: cast window to any to access the google property provided by the external script to satisfy TypeScript
+    if ((window as any).google) {
+      (window as any).google.accounts.id.disableAutoSelect();
     }
     setCurrentUser(null);
     localStorage.removeItem('blox_user');
