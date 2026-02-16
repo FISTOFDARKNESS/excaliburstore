@@ -30,11 +30,11 @@ export interface Comment {
   timestamp: number;
 }
 
-export interface EncryptionData {
-  publicKey: string;
-  privateKey?: string;
-  algorithm: string;
-  keySize: string;
+export interface VerificationData {
+  status: string;
+  checkedAt: number;
+  apiProvider: string;
+  verified: boolean;
 }
 
 export interface Asset {
@@ -56,5 +56,5 @@ export interface Asset {
   comments: Comment[];
   downloadCount: number;
   timestamp: number;
-  encryption?: EncryptionData;
+  verification?: VerificationData;
 }
