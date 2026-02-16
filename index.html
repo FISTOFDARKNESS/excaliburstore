@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BloxMarket - Roblox Asset Hub</title>
+    <title>Excalibur Store - Roblox Asset Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://js.puter.com/v2/"></script>
@@ -14,11 +14,10 @@
     <style>
         :root {
             --bg-color: #050505;
-            --card-bg: rgba(15, 15, 15, 0.4);
+            --card-bg: rgba(10, 10, 10, 0.6);
             --text-color: #ffffff;
             --accent-color: #3b82f6;
-            --border-color: rgba(255, 255, 255, 0.03);
-            --sidebar-bg: #050505;
+            --border-color: rgba(255, 255, 255, 0.05);
         }
 
         body {
@@ -27,49 +26,62 @@
             color: var(--text-color);
             margin: 0;
             overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.02) 0%, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 30px 30px, 30px 30px;
         }
 
         .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
+            width: 5px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
             background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #222;
+            background: #1a1a1a;
             border-radius: 10px;
         }
         
         .premium-card {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
-            backdrop-filter: blur(12px);
-            transition: all 0.3s ease;
+            backdrop-filter: blur(20px);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .glow-accent {
-            position: absolute;
-            top: -10%;
-            left: -10%;
-            width: 50%;
-            height: 70%;
-            background: radial-gradient(circle at center, var(--accent-color) 0.1, transparent 70%);
-            opacity: 0.2;
-            pointer-events: none;
-            z-index: 0;
+        .premium-card:hover {
+            border-color: rgba(59, 130, 246, 0.2);
+            background: rgba(15, 15, 15, 0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
         }
 
         .search-pill {
-            background: rgba(20, 20, 20, 0.4);
+            background: rgba(15, 15, 15, 0.8);
             border: 1px solid var(--border-color);
             color: var(--text-color);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
 
         .text-ghost {
             color: transparent;
-            -webkit-text-stroke: 1px var(--border-color);
-            margin-top: -10px;
-            opacity: 0.4;
+            -webkit-text-stroke: 1px rgba(255,255,255,0.05);
+            margin-top: -15px;
+            font-style: italic;
+        }
+
+        .italic-shadow {
+            text-shadow: 2px 2px 0px rgba(59, 130, 246, 0.1);
+        }
+
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+        .animate-pulse-soft {
+            animation: pulse-soft 2s infinite;
         }
     </style>
 <script type="importmap">

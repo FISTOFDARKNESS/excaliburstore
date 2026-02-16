@@ -1,6 +1,6 @@
 {
-  "name": "BloxMarket - Roblox File Hub",
-  "description": "A premium marketplace for Roblox creators to share .rbxm and .rbxl files, featuring social integration, advanced search, and professional asset management.",
+  "name": "Excalibur Store - Roblox File Hub",
+  "description": "A premium marketplace for Roblox creators to share .rbxm and .rbxl files globally. Access the decentralized repository at https://excaliburstore.vercel.app/",
   "requestFramePermissions": [
     "camera"
   ]
