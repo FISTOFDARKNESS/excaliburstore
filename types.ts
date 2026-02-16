@@ -17,6 +17,8 @@ export interface User {
   provider: 'google' | 'discord';
   followers: string[]; // User IDs
   following: string[]; // User IDs
+  bio?: string;
+  links?: { label: string, url: string }[];
 }
 
 export interface Comment {

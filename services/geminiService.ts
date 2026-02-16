@@ -1,13 +1,14 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: (process as any).env.API_KEY });
-
 export const getSearchKeywords = async (query: string): Promise<string[]> => {
+  // Use process.env.API_KEY directly as per the @google/genai coding guidelines.
+  // We assume the API_KEY environment variable is pre-configured and accessible.
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Extract search keywords and semantic related terms for a Roblox asset search: "${query}". Return only a JSON array of strings.`,
+      contents: `Dada a pesquisa de um asset no Roblox: "${query}", retorne uma lista de termos semanticamente relacionados (ex: se pesquisar 'carro', inclua 'veículo', 'drive', 'transporte'). Retorne APENAS um array JSON de strings.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -17,21 +18,11 @@ export const getSearchKeywords = async (query: string): Promise<string[]> => {
       }
     });
 
-    const textResult = response.text;
-    
-    // Verificação explícita para o TypeScript (Fix TS18048)
-    if (textResult && typeof textResult === 'string') {
-      try {
-        return JSON.parse(textResult.trim());
-      } catch (parseError) {
-        console.warn("Falha ao processar JSON do Gemini:", parseError);
-        return [query.toLowerCase()];
-      }
-    }
-
-    return [query.toLowerCase()];
+    // Access the .text property directly from the response.
+    const result = response.text;
+    return result ? JSON.parse(result) : [query.toLowerCase()];
   } catch (error) {
-    console.error("Erro na busca Gemini:", error);
+    console.error("Erro na busca semântica:", error);
     return [query.toLowerCase()];
   }
 };
