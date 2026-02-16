@@ -1,35 +1,23 @@
 
+import { neon } from '@neondatabase/serverless';
+
 /**
- * Serviço de integração com o Neon PostgreSQL via HTTP API.
- * Este serviço executa queries SQL diretamente no banco de dados fornecido.
+ * Serviço de integração com o Neon PostgreSQL via Driver Serverless oficial.
+ * Este driver resolve problemas de CORS e autenticação HTTP automaticamente.
  */
 
-const NEON_URL = "https://ep-lucky-night-ahauzl87-pooler.c-3.us-east-1.aws.neon.tech/sql";
 const DATABASE_URL = "postgresql://neondb_owner:npg_ZIigvq76hfeD@ep-lucky-night-ahauzl87-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require";
+
+// Instância do driver Neon
+const sql = neon(DATABASE_URL);
 
 async function executeQuery(query: string, params: any[] = []) {
   try {
-    const response = await fetch(`${NEON_URL}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: query,
-        params: params,
-        connectionString: DATABASE_URL
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error);
-    }
-
-    const result = await response.json();
+    // O driver neon lida com o fetch interno, headers e segurança.
+    const result = await sql(query, params);
     return result;
   } catch (err) {
-    console.error("Neon DB Error:", err);
+    console.error("Neon DB Execution Error:", err);
     throw err;
   }
 }
