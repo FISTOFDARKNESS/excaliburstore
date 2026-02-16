@@ -1,0 +1,7 @@
+{
+  "name": "BloxMarket - Roblox File Hub",
+  "description": "A premium marketplace for Roblox creators to share .rbxm and .rbxl files, featuring social integration, advanced search, and professional asset management.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
