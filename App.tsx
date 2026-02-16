@@ -7,7 +7,6 @@ import { getSearchKeywords } from './services/geminiService';
 // --- Helpers ---
 const getEmbedUrl = (url: string) => {
   if (!url) return null;
-  // Check if it's a data URL (uploaded file)
   if (url.startsWith('data:video/')) return url;
   
   const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
@@ -205,11 +204,11 @@ const AssetDetailModal: React.FC<{
           <div className="flex-grow mt-10 space-y-6">
             <button 
               onClick={() => onAuthorClick(asset.userId)}
-              className="w-full p-4 premium-card rounded-2xl flex items-center gap-4 hover:border-white/20 transition-all text-left"
+              className="w-full p-4 premium-card rounded-2xl flex items-center gap-4 hover:border-white/20 transition-all text-left group/author"
             >
               <img src={asset.authorAvatar} className="w-10 h-10 rounded-full border border-white/10" alt="avatar" />
-              <div>
-                <p className="text-sm font-black text-white">@{asset.authorName}</p>
+              <div className="min-w-0 flex-grow">
+                <p className="text-sm font-black text-white truncate group-hover/author:text-blue-400">@{asset.authorName}</p>
                 <p className="text-[9px] text-zinc-500 uppercase font-black">Creator</p>
               </div>
             </button>
@@ -422,6 +421,11 @@ const PublishModal = ({ onClose, onPublish }: { onClose: () => void, onPublish: 
 // --- Root App ---
 
 export default function App() {
+  const [users, setUsers] = useState<User[]>(() => {
+    const saved = localStorage.getItem('blox_users');
+    return saved ? JSON.parse(saved) : MOCK_USERS;
+  });
+
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('blox_user');
     return saved ? JSON.parse(saved) : null;
@@ -444,11 +448,12 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Persist user bio/links changes
   useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('blox_user', JSON.stringify(currentUser));
-    }
+    localStorage.setItem('blox_users', JSON.stringify(users));
+  }, [users]);
+
+  useEffect(() => {
+    localStorage.setItem('blox_user', JSON.stringify(currentUser));
   }, [currentUser]);
 
   useEffect(() => {
@@ -468,6 +473,7 @@ export default function App() {
       bio: "Mastering the Roblox metaverse one brick at a time.",
       links: [{ label: "Portfolio", url: "https://roblox.com" }, { label: "Discord", url: "https://discord.gg" }]
     };
+    setUsers(prev => [...prev, mockUser]);
     setCurrentUser(mockUser);
     setShowLoginMenu(false);
   };
@@ -477,6 +483,36 @@ export default function App() {
     localStorage.removeItem('blox_user');
     setActiveTab('home');
     setViewingUserId(null);
+  };
+
+  const handleFollow = (targetId: string) => {
+    if (!currentUser) {
+      setShowLoginMenu(true);
+      return;
+    }
+    if (currentUser.id === targetId) return;
+
+    const isFollowing = currentUser.following.includes(targetId);
+
+    setUsers(prev => prev.map(u => {
+      // Update target user's followers
+      if (u.id === targetId) {
+        const followers = isFollowing 
+          ? u.followers.filter(id => id !== currentUser.id)
+          : [...u.followers, currentUser.id];
+        return { ...u, followers };
+      }
+      // Update current user's following
+      if (u.id === currentUser.id) {
+        const following = isFollowing
+          ? u.following.filter(id => id !== targetId)
+          : [...u.following, targetId];
+        const updated = { ...u, following };
+        setCurrentUser(updated);
+        return updated;
+      }
+      return u;
+    }));
   };
 
   const handleDownload = (asset: Asset) => {
@@ -540,11 +576,13 @@ export default function App() {
     if (link1Label && link1Url) updatedLinks.push({ label: link1Label, url: link1Url });
     if (link2Label && link2Url) updatedLinks.push({ label: link2Label, url: link2Url });
 
-    setCurrentUser({
+    const updated = {
       ...currentUser,
       bio,
       links: updatedLinks
-    });
+    };
+    setCurrentUser(updated);
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? updated : u));
   };
 
   const filteredAssets = useMemo(() => {
@@ -564,22 +602,14 @@ export default function App() {
     return assets.find(a => a.id === selectedAssetId) || null;
   }, [assets, selectedAssetId]);
 
-  // Handle viewing specific profile
   const targetUser = useMemo(() => {
-    if (!viewingUserId) return currentUser;
-    // Check mock users or current user
-    const found = MOCK_USERS.find(u => u.id === viewingUserId) || (currentUser?.id === viewingUserId ? currentUser : null);
-    // If not found, we mock a basic user from asset data
-    if (!found) {
-      const asset = assets.find(a => a.userId === viewingUserId);
-      if (asset) return { id: viewingUserId, name: asset.authorName, username: asset.authorName.toLowerCase(), avatar: asset.authorAvatar, followers: [], following: [], bio: "A dedicated creator in the Roblox ecosystem.", links: [] } as User;
-    }
-    return found;
-  }, [viewingUserId, currentUser, assets]);
+    const id = viewingUserId || (activeTab === 'profile' ? currentUser?.id : null);
+    if (!id) return null;
+    return users.find(u => u.id === id) || null;
+  }, [users, viewingUserId, currentUser, activeTab]);
 
   const targetAssets = useMemo(() => {
     if (!targetUser) return [];
-    // Fixed typo: removed 'encoder.' and ensured strict equality check for target user's assets.
     return assets.filter(a => a.userId === targetUser.id);
   }, [targetUser, assets]);
 
@@ -599,12 +629,14 @@ export default function App() {
           <div className="max-w-4xl mx-auto flex flex-col items-center">
             <h1 className="text-[110px] font-black uppercase leading-[0.8] tracking-tighter text-white">Explore</h1>
             <h1 className="text-[110px] font-black uppercase leading-[0.8] tracking-tighter text-ghost mb-16">Global Hub</h1>
-            <input 
-              type="text" 
-              placeholder="Search assets..." 
-              className="w-full search-pill rounded-full py-8 px-12 text-2xl font-semibold focus:outline-none focus:border-white/20 transition-all text-center mb-24 placeholder:text-zinc-800"
-              onChange={e => setSearchQuery(e.target.value)}
-            />
+            <div className="w-full relative">
+               <input 
+                type="text" 
+                placeholder="Search assets..." 
+                className="w-full search-pill rounded-full py-8 px-12 text-2xl font-semibold focus:outline-none focus:border-white/20 transition-all text-center mb-24 placeholder:text-zinc-800"
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
             <div className="w-full space-y-5">
               {filteredAssets.map(a => (
                 <AssetRow 
@@ -647,7 +679,7 @@ export default function App() {
                 {userAssets.length > 0 ? userAssets.map(a => (
                   <AssetRow key={a.id} asset={a} onClick={onAssetClick} onDownload={handleDownload} />
                 )) : (
-                  <div className="py-20 text-center premium-card rounded-[40px] border-dashed">
+                  <div className="py-20 text-center premium-card rounded-[40px] border-dashed border-white/10">
                     <p className="text-zinc-800 font-black uppercase tracking-widest italic">No assets published by you yet.</p>
                   </div>
                 )}
@@ -672,13 +704,13 @@ export default function App() {
           ) : (
             <div className="max-w-4xl w-full space-y-12 pb-24">
               <div className="premium-card rounded-[48px] p-12 flex flex-col md:flex-row items-center gap-10 text-center md:text-left z-10 relative">
-                 <img src={targetUser.avatar} className="w-40 h-40 rounded-full border-4 border-white/5 shadow-2xl shrink-0" alt="avatar" />
-                 <div className="flex-grow space-y-4">
+                 <img src={targetUser.avatar} className="w-40 h-40 rounded-full border-4 border-white/5 shadow-2xl shrink-0 object-cover" alt="avatar" />
+                 <div className="flex-grow space-y-4 min-w-0">
                    <div>
-                     <h2 className="text-5xl font-black uppercase tracking-tighter italic text-white leading-none">{targetUser.name}</h2>
+                     <h2 className="text-5xl font-black uppercase tracking-tighter italic text-white leading-none truncate">{targetUser.name}</h2>
                      <p className="text-zinc-500 font-black uppercase tracking-[0.3em] text-[10px] mt-2">@{targetUser.username}</p>
                    </div>
-                   <p className="text-zinc-400 text-sm max-w-xl leading-relaxed">{targetUser.bio || "This user hasn't set a bio yet."}</p>
+                   <p className="text-zinc-400 text-sm max-w-xl leading-relaxed whitespace-pre-line">{targetUser.bio || "This user hasn't set a bio yet."}</p>
                    <div className="flex flex-wrap gap-4 justify-center md:justify-start">
                      {targetUser.links?.map((link, idx) => (
                        <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="px-5 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all text-white">
@@ -693,7 +725,16 @@ export default function App() {
                        <p className="text-[9px] font-black uppercase text-zinc-600 tracking-widest mt-1">Followers</p>
                     </div>
                     {currentUser && currentUser.id !== targetUser.id && (
-                      <button className="w-full bg-white text-black font-black uppercase py-3 rounded-2xl text-[10px] tracking-widest hover:brightness-110 transition-all">FOLLOW</button>
+                      <button 
+                        onClick={() => handleFollow(targetUser.id)}
+                        className={`w-full font-black uppercase py-4 rounded-2xl text-[10px] tracking-widest transition-all ${
+                          currentUser.following.includes(targetUser.id)
+                            ? 'bg-zinc-800 text-white border border-white/10 hover:bg-red-500/10 hover:border-red-500/50 hover:text-red-500'
+                            : 'bg-white text-black hover:brightness-110 active:scale-95'
+                        }`}
+                      >
+                        {currentUser.following.includes(targetUser.id) ? 'UNFOLLOW' : 'FOLLOW'}
+                      </button>
                     )}
                  </div>
               </div>
@@ -705,9 +746,9 @@ export default function App() {
                 </div>
                 <div className="grid grid-cols-1 gap-5">
                   {targetAssets.length > 0 ? targetAssets.map(a => (
-                    <AssetRow key={a.id} asset={a} onClick={onAssetClick} onDownload={handleDownload} />
+                    <AssetRow key={a.id} asset={a} onClick={onAssetClick} onDownload={handleDownload} onAuthorClick={onAuthorClick} />
                   )) : (
-                    <div className="py-20 text-center premium-card rounded-[40px] border-dashed">
+                    <div className="py-20 text-center premium-card rounded-[40px] border-dashed border-white/10">
                       <p className="text-zinc-800 font-black uppercase tracking-widest italic">No public assets found.</p>
                     </div>
                   )}
@@ -737,7 +778,7 @@ export default function App() {
                   <div className="space-y-2">
                     <label className="text-[9px] font-black uppercase text-zinc-600">Biography</label>
                     <textarea 
-                      className="w-full bg-[#111] border border-white/5 rounded-2xl p-4 text-white text-sm focus:outline-none min-h-[100px]"
+                      className="w-full bg-[#111] border border-white/5 rounded-2xl p-4 text-white text-sm focus:outline-none min-h-[100px] resize-none"
                       placeholder="Tell the world about yourself..."
                       defaultValue={currentUser.bio}
                       onBlur={(e) => handleUpdateProfile(e.target.value, currentUser.links?.[0]?.label || '', currentUser.links?.[0]?.url || '', currentUser.links?.[1]?.label || '', currentUser.links?.[1]?.url || '')}
