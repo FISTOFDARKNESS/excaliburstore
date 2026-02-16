@@ -92,6 +92,40 @@ const PuterImage = ({ path, className, alt }: { path: string, className?: string
   return <img src={src || 'https://via.placeholder.com/800x450?text=Carregando...'} className={className} alt={alt} />;
 };
 
+const LoginMenu = ({ onClose }: { onClose: () => void }) => {
+  useEffect(() => {
+    // Renderiza o botão assim que o modal abre e o container está disponível
+    const interval = setInterval(() => {
+      const btnContainer = document.getElementById("google-login-btn-container");
+      if (btnContainer && (window as any).google) {
+        (window as any).google.accounts.id.renderButton(
+          btnContainer,
+          { theme: "filled_blue", size: "large", width: "240", shape: "pill", text: "continue_with" }
+        );
+        clearInterval(interval);
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[4000] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-[280px] bg-[#0f0f0f] border border-white/5 rounded-3xl p-6 space-y-6 shadow-2xl">
+        <div className="text-center space-y-2">
+          <div className="w-10 h-10 bg-white rounded-lg mx-auto flex items-center justify-center shadow-lg">
+            <svg viewBox="0 0 24 24" className="w-6 h-6 text-black" fill="currentColor"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71L12 2z" /></svg>
+          </div>
+          <h3 className="text-lg font-bold tracking-tight text-white leading-none">Login Hub</h3>
+          <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Acesso ao Excalibur Repository</p>
+        </div>
+        <div id="google-login-btn-container" className="flex justify-center min-h-[40px]" />
+        <button onClick={onClose} className="w-full text-[9px] text-zinc-600 font-bold uppercase hover:text-white transition-colors">Abortar</button>
+      </div>
+    </div>
+  );
+};
+
 const AssetRow: React.FC<{
   asset: Asset;
   onClick: (a: Asset) => void;
@@ -102,7 +136,7 @@ const AssetRow: React.FC<{
     <div className="w-16 h-16 rounded-lg overflow-hidden bg-zinc-900 flex-shrink-0 border border-white/5 relative">
       <PuterImage path={asset.thumbnailUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt={asset.title} />
       {asset.reports.length > 0 && (
-        <div className="absolute top-1 left-1 bg-red-600 text-white px-1 py-0.5 rounded text-[7px] font-black flex items-center gap-0.5">
+        <div className="absolute top-1 left-1 bg-red-600 text-white px-1 py-0.5 rounded text-[7px] font-black flex items-center gap-0.5 shadow-lg">
           <svg viewBox="0 0 24 24" className="w-2 h-2" fill="currentColor"><path d="M12 2L1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2V8h2v4z"/></svg>
           {asset.reports.length}
         </div>
@@ -149,7 +183,11 @@ export default function App() {
     localStorage.setItem('bx_assets_v11', JSON.stringify(assets));
   }, [users, currentUser, assets]);
 
-  const isAdmin = useMemo(() => currentUser?.username === ADMIN_EMAIL || (currentUser as any)?.email === ADMIN_EMAIL, [currentUser]);
+  // Checagem de Admin
+  const isAdmin = useMemo(() => {
+    if (!currentUser) return false;
+    return currentUser.username === ADMIN_EMAIL || (currentUser as any).email === ADMIN_EMAIL;
+  }, [currentUser]);
 
   const handleGoogleSignIn = (response: any) => {
     const payload = parseJwt(response.credential);
@@ -503,23 +541,8 @@ export default function App() {
         </div>
       )}
 
-      {showLoginMenu && (
-        <div className="fixed inset-0 z-[4000] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setShowLoginMenu(false)} />
-          <div className="relative w-full max-w-[280px] bg-[#0f0f0f] border border-white/5 rounded-3xl p-6 space-y-6 shadow-2xl">
-            <div className="text-center space-y-2">
-              <div className="w-10 h-10 bg-white rounded-lg mx-auto flex items-center justify-center shadow-lg">
-                <svg viewBox="0 0 24 24" className="w-6 h-6 text-black" fill="currentColor"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71L12 2z" /></svg>
-              </div>
-              <h3 className="text-lg font-bold tracking-tight text-white leading-none">Login Hub</h3>
-              <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Acesso ao Excalibur Repository</p>
-            </div>
-            <div id="google-login-btn-container" className="flex justify-center" />
-            <button onClick={() => setShowLoginMenu(false)} className="w-full text-[9px] text-zinc-600 font-bold uppercase hover:text-white transition-colors">Abortar</button>
-          </div>
-        </div>
-      )}
-
+      {showLoginMenu && <LoginMenu onClose={() => setShowLoginMenu(false)} />}
+      
       {showPublishModal && (
         <PublishModal 
           isUploading={isUploading} 
