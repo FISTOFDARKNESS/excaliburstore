@@ -6,10 +6,30 @@ import { MOCK_ASSETS, MOCK_USERS, Icons } from './constants';
 // --- CONFIGURATION ---
 const GOOGLE_CLIENT_ID = "308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com";
 const ADMIN_EMAIL = "kaioadrik08@gmail.com";
+const GLOBAL_DATA_PATH = 'Documents/ExcaliburCloud/repository_v1.json';
 
 declare const puter: any;
 
 // --- API Helpers ---
+
+const saveGlobalState = async (users: User[], assets: Asset[]) => {
+  try {
+    const data = JSON.stringify({ users, assets });
+    await puter.fs.write(GLOBAL_DATA_PATH, data);
+  } catch (e) {
+    console.error("Failed to sync global state to cloud:", e);
+  }
+};
+
+const loadGlobalState = async (): Promise<{ users: User[], assets: Asset[] } | null> => {
+  try {
+    const blob = await puter.fs.read(GLOBAL_DATA_PATH);
+    const text = await blob.text();
+    return JSON.parse(text);
+  } catch (e) {
+    return null;
+  }
+};
 
 const uploadToCloud = async (file: File, folder: string = 'Assets'): Promise<string> => {
   try {
@@ -17,7 +37,7 @@ const uploadToCloud = async (file: File, folder: string = 'Assets'): Promise<str
     try {
         await puter.fs.mkdir(dir, { recursive: true });
     } catch (dirErr) {
-        // Ignore if directory already exists
+        // Ignore if directory exists
     }
 
     const path = `${dir}/${Date.now()}_${file.name}`;
@@ -171,9 +191,11 @@ const AssetRow: React.FC<{
 );
 
 export default function App() {
-  const [users, setUsers] = useState<User[]>(() => JSON.parse(localStorage.getItem('bx_users_v13') || JSON.stringify(MOCK_USERS)));
-  const [currentUser, setCurrentUser] = useState<User | null>(() => JSON.parse(localStorage.getItem('bx_cur_user_v13') || 'null'));
-  const [assets, setAssets] = useState<Asset[]>(() => JSON.parse(localStorage.getItem('bx_assets_v13') || JSON.stringify(MOCK_ASSETS)));
+  const [users, setUsers] = useState<User[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [isCloudLoaded, setIsCloudLoaded] = useState(false);
+  
   const [activeTab, setActiveTab] = useState('home');
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [showLoginMenu, setShowLoginMenu] = useState(false);
@@ -183,11 +205,37 @@ export default function App() {
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
 
+  // Initial Boot: Load from Cloud
   useEffect(() => {
-    localStorage.setItem('bx_users_v13', JSON.stringify(users));
-    localStorage.setItem('bx_cur_user_v13', JSON.stringify(currentUser));
-    localStorage.setItem('bx_assets_v13', JSON.stringify(assets));
-  }, [users, currentUser, assets]);
+    const boot = async () => {
+      const storedLocalUser = localStorage.getItem('ex_cur_user');
+      if (storedLocalUser) setCurrentUser(JSON.parse(storedLocalUser));
+
+      const cloudData = await loadGlobalState();
+      if (cloudData) {
+        setUsers(cloudData.users || []);
+        setAssets(cloudData.assets || []);
+      }
+      setIsCloudLoaded(true);
+    };
+    boot();
+  }, []);
+
+  // Sync to Cloud on Changes
+  useEffect(() => {
+    if (isCloudLoaded) {
+      saveGlobalState(users, assets);
+    }
+  }, [users, assets, isCloudLoaded]);
+
+  // Save current user locally for session persistence
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('ex_cur_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('ex_cur_user');
+    }
+  }, [currentUser]);
 
   const isAdmin = useMemo(() => {
     if (!currentUser) return false;
@@ -209,7 +257,7 @@ export default function App() {
         provider: 'google', 
         followers: [], 
         following: [], 
-        bio: "Member of Excalibur Cloud", 
+        bio: "Cloud Member", 
         links: [] 
       };
       setUsers(prev => [...prev, newUser]);
@@ -246,8 +294,9 @@ export default function App() {
     setAssets(prev => prev.map(a => a.userId === currentUser.id ? { ...a, authorName: newName } : a));
   };
 
-  const incrementDownload = (assetId: string) => {
-    setAssets(prev => prev.map(a => a.id === assetId ? { ...a, downloadCount: a.downloadCount + 1 } : a));
+  const handleDownload = async (asset: Asset) => {
+    await downloadFromCloud(asset.fileData!, asset.title + asset.fileType);
+    setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, downloadCount: a.downloadCount + 1 } : a));
   };
 
   const handlePublish = async (files: { thumb: File, rbx: File, data: any }) => {
@@ -292,7 +341,7 @@ export default function App() {
     if (!asset) return;
     if (asset.userId !== currentUser?.id && !isAdmin) return;
     
-    if (confirm("Permanently delete this file from Excalibur Repository?")) {
+    if (confirm("Delete this asset permanently from the cloud?")) {
       if (asset.fileData) await deleteFromCloud(asset.fileData);
       if (asset.thumbnailUrl && !asset.thumbnailUrl.startsWith('http')) await deleteFromCloud(asset.thumbnailUrl);
       
@@ -385,8 +434,13 @@ export default function App() {
                 <input type="text" placeholder="Search the Excalibur ecosystem..." className="w-full search-pill rounded-xl py-4 px-6 text-lg font-bold text-center focus:outline-none placeholder:text-zinc-800 border border-white/5 transition-all focus:border-white/10" onChange={e => setSearchQuery(e.target.value)} />
               </div>
               <div className="space-y-3.5 animate-in fade-in duration-700">
-                {filteredAssets.map(a => <AssetRow key={a.id} asset={a} onClick={a => setSelectedAssetId(a.id)} onDownload={a => { downloadFromCloud(a.fileData!, a.title + a.fileType); incrementDownload(a.id); }} onAuthorClick={uid => { setViewingUserId(uid); setActiveTab('profile'); }} />)}
-                {filteredAssets.length === 0 && <div className="py-10 text-center text-zinc-800 font-bold uppercase tracking-widest text-[10px] italic">No assets found.</div>}
+                {filteredAssets.map(a => <AssetRow key={a.id} asset={a} onClick={a => setSelectedAssetId(a.id)} onDownload={handleDownload} onAuthorClick={uid => { setViewingUserId(uid); setActiveTab('profile'); }} />)}
+                {filteredAssets.length === 0 && (
+                   <div className="py-20 text-center space-y-4">
+                      <p className="text-zinc-800 font-bold uppercase tracking-widest text-[10px] italic">No assets found in the cloud.</p>
+                      {!isCloudLoaded && <div className="w-4 h-4 border-2 border-white/5 border-t-white/30 rounded-full animate-spin mx-auto" />}
+                   </div>
+                )}
               </div>
             </div>
           </div>
@@ -397,24 +451,24 @@ export default function App() {
             <div className="max-w-2xl mx-auto">
               <div className="flex justify-between items-end mb-10">
                 <div className="space-y-0.5">
-                  <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">My Files</h1>
-                  <p className="text-zinc-600 text-[8px] font-bold uppercase tracking-[0.4em] ml-1">Cloud Node Sync</p>
+                  <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">Cloud Files</h1>
+                  <p className="text-zinc-600 text-[8px] font-bold uppercase tracking-[0.4em] ml-1">Verified Node Sync</p>
                 </div>
-                {currentUser && <button onClick={() => setShowPublishModal(true)} className="bg-white text-black px-5 py-2.5 rounded-lg font-black uppercase text-[9px] tracking-widest hover:brightness-90 transition-all shadow-lg">Upload File</button>}
+                {currentUser && <button onClick={() => setShowPublishModal(true)} className="bg-white text-black px-5 py-2.5 rounded-lg font-black uppercase text-[9px] tracking-widest hover:brightness-90 transition-all shadow-lg">Upload New Asset</button>}
               </div>
               <div className="space-y-3.5">
                 {currentUser ? (
                   assets.filter(a => a.userId === currentUser.id).length > 0 ? (
-                    assets.filter(a => a.userId === currentUser.id).map(a => <AssetRow key={a.id} asset={a} onClick={a => setSelectedAssetId(a.id)} onDownload={a => { downloadFromCloud(a.fileData!, a.title + a.fileType); incrementDownload(a.id); }} />)
+                    assets.filter(a => a.userId === currentUser.id).map(a => <AssetRow key={a.id} asset={a} onClick={a => setSelectedAssetId(a.id)} onDownload={handleDownload} />)
                   ) : (
                     <div className="py-20 text-center border border-dashed border-white/5 rounded-2xl">
-                      <p className="text-zinc-800 font-bold uppercase tracking-widest text-[9px]">Your library is currently empty.</p>
+                      <p className="text-zinc-800 font-bold uppercase tracking-widest text-[9px]">You haven't published any assets yet.</p>
                     </div>
                   )
                 ) : (
                   <div className="py-20 text-center bg-white/5 rounded-2xl border border-white/5">
-                    <p className="text-zinc-600 font-bold text-[9px] uppercase tracking-widest mb-3.5">Connect your account to see your files</p>
-                    <button onClick={() => setShowLoginMenu(true)} className="bg-white text-black px-5 py-2 rounded-full font-bold text-[8px] uppercase tracking-widest">Login via Google</button>
+                    <p className="text-zinc-600 font-bold text-[9px] uppercase tracking-widest mb-3.5">Log in to manage your cloud entries</p>
+                    <button onClick={() => setShowLoginMenu(true)} className="bg-white text-black px-5 py-2 rounded-full font-bold text-[8px] uppercase tracking-widest">Login to Dashboard</button>
                   </div>
                 )}
               </div>
@@ -431,7 +485,7 @@ export default function App() {
                   <div className="flex-grow text-center sm:text-left space-y-2">
                     {currentUser?.id === targetUser.id ? (
                       <div className="space-y-1">
-                        <label className="text-[7px] font-black uppercase text-blue-500 ml-1">Edit Display Name</label>
+                        <label className="text-[7px] font-black uppercase text-blue-500 ml-1">Edit Cloud Identity</label>
                         <input 
                           className="bg-white/5 text-3xl font-black uppercase italic tracking-tighter leading-none border border-white/10 px-3 py-1 rounded-xl focus:outline-none w-full max-w-xs focus:border-blue-500/50"
                           value={targetUser.name}
@@ -441,14 +495,14 @@ export default function App() {
                     ) : (
                       <h2 className="text-3xl font-black uppercase italic tracking-tighter leading-none">{targetUser.name}</h2>
                     )}
-                    <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">ID: @{targetUser.username.split('@')[0]}</p>
-                    <p className="text-zinc-500 text-xs leading-relaxed font-medium max-w-sm">{targetUser.bio || "Exclusive member of the Excalibur ecosystem."}</p>
+                    <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">Node ID: @{targetUser.username.split('@')[0]}</p>
+                    <p className="text-zinc-500 text-xs leading-relaxed font-medium max-w-sm">{targetUser.bio || "Active member of the Excalibur Cloud Repository."}</p>
                   </div>
                 </div>
               </div>
               <div className="space-y-6">
-                <h3 className="text-lg font-bold uppercase italic tracking-tight border-b border-white/5 pb-3">User Entries</h3>
-                <div className="space-y-3.5">{assets.filter(a => a.userId === targetUser.id).map(a => <AssetRow key={a.id} asset={a} onClick={a => setSelectedAssetId(a.id)} onDownload={a => { downloadFromCloud(a.fileData!, a.title + a.fileType); incrementDownload(a.id); }} />)}</div>
+                <h3 className="text-lg font-bold uppercase italic tracking-tight border-b border-white/5 pb-3">Entries in Library</h3>
+                <div className="space-y-3.5">{assets.filter(a => a.userId === targetUser.id).map(a => <AssetRow key={a.id} asset={a} onClick={a => setSelectedAssetId(a.id)} onDownload={handleDownload} />)}</div>
               </div>
             </div>
           </div>
@@ -462,7 +516,7 @@ export default function App() {
             const asset = assets.find(a => a.id === selectedAssetId)!;
             const isOwner = currentUser?.id === asset.userId;
             return (
-              <div className="relative w-full max-w-4xl bg-[#080808] border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh]">
+              <div className="relative w-full max-w-4xl bg-[#080808] border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh] animate-in zoom-in-95 duration-200">
                 <div className="flex-grow p-6 overflow-y-auto custom-scrollbar space-y-8">
                   <div className="aspect-video w-full rounded-2xl overflow-hidden border border-white/5 shadow-lg bg-zinc-900">
                     <CloudImage path={asset.thumbnailUrl} className="w-full h-full object-cover" />
@@ -470,14 +524,14 @@ export default function App() {
                   <div className="space-y-3">
                     <div className="flex items-center gap-2.5">
                       <h2 className="text-2xl font-black uppercase italic tracking-tighter leading-tight">{asset.title}</h2>
-                      <div className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 text-[7px] font-black uppercase tracking-widest">VERIFIED SYNC</div>
+                      <div className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 text-[7px] font-black uppercase tracking-widest">CLOUD SYNCED</div>
                     </div>
                     <p className="text-zinc-500 text-sm leading-relaxed font-medium">{asset.description}</p>
                   </div>
                   
                   {/* Comments */}
                   <div className="pt-8 border-t border-white/5 space-y-6">
-                    <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-600 italic">Conversations & Feedback ({asset.comments.length})</h4>
+                    <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-600 italic">User Feedback ({asset.comments.length})</h4>
                     <div className="space-y-4">
                       {currentUser && (
                         <div className="flex gap-3">
@@ -485,7 +539,7 @@ export default function App() {
                           <div className="flex-grow space-y-2">
                             <textarea 
                               className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500/30 h-20 resize-none transition-all placeholder:text-zinc-800"
-                              placeholder="Join the conversation..."
+                              placeholder="Join the discussion..."
                               value={newComment}
                               onChange={(e) => setNewComment(e.target.value)}
                             />
@@ -496,7 +550,7 @@ export default function App() {
                           </div>
                         </div>
                       )}
-                      <div className="space-y-5">
+                      <div className="space-y-5 pb-8">
                         {asset.comments.map(c => (
                           <div key={c.id} className="flex gap-3 animate-in fade-in duration-300">
                             <img src={c.userAvatar} className="w-8 h-8 rounded-full border border-white/5" />
@@ -509,7 +563,7 @@ export default function App() {
                             </div>
                           </div>
                         ))}
-                        {asset.comments.length === 0 && <p className="text-[9px] text-zinc-700 font-bold uppercase text-center py-4">No comments yet.</p>}
+                        {asset.comments.length === 0 && <p className="text-[9px] text-zinc-700 font-bold uppercase text-center py-4">No community feedback yet.</p>}
                       </div>
                     </div>
                   </div>
@@ -518,7 +572,7 @@ export default function App() {
                 <div className="w-full md:w-[300px] bg-[#0a0a0a] border-l border-white/5 p-6 flex flex-col justify-between">
                   <div className="space-y-6">
                     <div className="flex justify-between items-center">
-                       <span className="text-[8px] font-bold uppercase text-zinc-700 tracking-widest">Node Metadata</span>
+                       <span className="text-[8px] font-bold uppercase text-zinc-700 tracking-widest">Metadata</span>
                        <button onClick={() => setSelectedAssetId(null)} className="bg-white/5 p-1.5 rounded-full hover:bg-white/10 transition-all rotate-45 text-zinc-500"><Icons.Plus /></button>
                     </div>
 
@@ -536,7 +590,7 @@ export default function App() {
                           onClick={() => handleDelete(asset.id)}
                           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-600/10 border border-red-600/20 text-red-500 text-[9px] font-bold uppercase tracking-widest hover:bg-red-600/20 transition-all shadow-lg"
                         >
-                          Remove Asset
+                          Remove Cloud Entry
                         </button>
                       )}
                     </div>
@@ -557,11 +611,11 @@ export default function App() {
                         <img src={asset.authorAvatar} className="w-5 h-5 rounded-full border border-white/10" />
                         <span className="text-[8px] font-bold uppercase text-zinc-400 truncate group-hover/author:text-white transition-colors">@{asset.authorName}</span>
                       </div>
-                      <p className="text-[7px] text-zinc-700 uppercase font-black italic">Published on: {new Date(asset.timestamp).toLocaleDateString()}</p>
+                      <p className="text-[7px] text-zinc-700 uppercase font-black italic">Published: {new Date(asset.timestamp).toLocaleDateString()}</p>
                     </div>
                   </div>
 
-                  <button onClick={() => { downloadFromCloud(asset.fileData!, asset.title + asset.fileType); incrementDownload(asset.id); }} className="w-full bg-white text-black font-black uppercase py-4 rounded-2xl text-[10px] tracking-widest hover:brightness-90 transition-all mt-6 shadow-2xl active:scale-95">DOWNLOAD FILE NOW</button>
+                  <button onClick={() => handleDownload(asset)} className="w-full bg-white text-black font-black uppercase py-4 rounded-2xl text-[10px] tracking-widest hover:brightness-90 transition-all mt-6 shadow-2xl active:scale-95">SYNC & DOWNLOAD</button>
                 </div>
               </div>
             );
@@ -591,7 +645,7 @@ const PublishModal = ({ onClose, onPublish, isUploading }: { onClose: () => void
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!thumb || !rbxFile) return alert("Please attach a thumbnail and the Roblox file.");
+    if (!thumb || !rbxFile) return alert("Required binary and thumbnail data missing.");
     onPublish({ thumb, rbx: rbxFile, data: { title, desc, category } });
   };
 
@@ -603,28 +657,28 @@ const PublishModal = ({ onClose, onPublish, isUploading }: { onClose: () => void
           <div className="py-16 flex flex-col items-center justify-center space-y-6 text-center">
             <div className="w-12 h-12 border-4 border-white/5 border-t-blue-500 rounded-full animate-spin" />
             <div className="space-y-1">
-              <h2 className="text-xl font-bold text-white tracking-tight uppercase italic">Cloud Syncing...</h2>
-              <p className="text-zinc-600 text-[9px] font-bold uppercase tracking-widest italic">Encrypting and saving entry</p>
+              <h2 className="text-xl font-bold text-white tracking-tight uppercase italic">Syncing to Cloud...</h2>
+              <p className="text-zinc-600 text-[9px] font-bold uppercase tracking-widest italic">Encrypting repository node entry</p>
             </div>
           </div>
         ) : (
           <>
             <div className="flex justify-between items-center mb-8">
               <div className="space-y-1">
-                <h2 className="text-xl font-black uppercase italic text-white leading-none tracking-tight">Publish Asset</h2>
-                <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest">Excalibur Cloud Ecosystem</p>
+                <h2 className="text-xl font-black uppercase italic text-white leading-none tracking-tight">Upload Asset</h2>
+                <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest">Global Excalibur Ecosystem</p>
               </div>
               <button onClick={onClose} className="p-1.5 text-zinc-700 hover:text-white transition-all bg-white/5 rounded-full rotate-45"><Icons.Plus /></button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-1">
-                <label className="text-[9px] font-bold uppercase text-zinc-600 tracking-wider ml-1">Asset Label</label>
-                <input required type="text" placeholder="e.g. Advanced Engine V3" className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-all placeholder:text-zinc-800" value={title} onChange={e => setTitle(e.target.value)} />
+                <label className="text-[9px] font-bold uppercase text-zinc-600 tracking-wider ml-1">Asset Designation</label>
+                <input required type="text" placeholder="e.g. Low Poly Engine V4" className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-all placeholder:text-zinc-800" value={title} onChange={e => setTitle(e.target.value)} />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[9px] font-bold uppercase text-zinc-600 tracking-wider ml-1">Summary / Manual</label>
-                <textarea className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-all h-24 resize-none placeholder:text-zinc-800" placeholder="Describe asset functions..." value={desc} onChange={e => setDesc(e.target.value)} />
+                <label className="text-[9px] font-bold uppercase text-zinc-600 tracking-wider ml-1">Technical Summary</label>
+                <textarea className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-all h-24 resize-none placeholder:text-zinc-800" placeholder="Describe the components..." value={desc} onChange={e => setDesc(e.target.value)} />
               </div>
 
               <div className="space-y-1">
@@ -632,7 +686,7 @@ const PublishModal = ({ onClose, onPublish, isUploading }: { onClose: () => void
                 <label className={`w-full p-5 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${rbxFile ? 'bg-blue-500/10 border-blue-500/40 text-blue-400' : 'bg-white/5 border-white/10 text-zinc-600 hover:border-white/20'}`}>
                   <input type="file" accept=".rbxm,.rbxl,.rbxmx" onChange={e => e.target.files && setRbxFile(e.target.files[0])} className="hidden" />
                   <Icons.Script />
-                  <span className="font-bold text-[10px] tracking-widest mt-2 uppercase">{rbxFile ? rbxFile.name : "Attach Binary"}</span>
+                  <span className="font-bold text-[10px] tracking-widest mt-2 uppercase">{rbxFile ? rbxFile.name : "Link Binary"}</span>
                 </label>
               </div>
 
@@ -652,7 +706,7 @@ const PublishModal = ({ onClose, onPublish, isUploading }: { onClose: () => void
                 </div>
               </div>
 
-              <button type="submit" className="w-full bg-white text-black font-black uppercase py-4 rounded-2xl text-[10px] tracking-widest hover:brightness-90 transition-all shadow-2xl active:scale-95">CONFIRM PUBLICATION</button>
+              <button type="submit" className="w-full bg-white text-black font-black uppercase py-4 rounded-2xl text-[10px] tracking-widest hover:brightness-90 transition-all shadow-2xl active:scale-95">CONFIRM ENTRY</button>
             </form>
           </>
         )}
