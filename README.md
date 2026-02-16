@@ -1,20 +1,56 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# Excalibur Store - Neon DB Setup
 
-This contains everything you need to run your app locally.
+Este projeto usa o **Neon Database (PostgreSQL)** para gerenciar metadados de assets, usuários e comentários em tempo real.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1fD3btAls4PGsDHyx1qyLF5tgyqEdhISp
+## Como configurar o Neon SQL Editor
 
-## Run Locally
+1. Acesse o console da Neon: [console.neon.tech](https://console.neon.tech)
+2. Vá até a aba **SQL Editor**.
+3. Copie e execute o código abaixo para criar a estrutura necessária:
 
-**Prerequisites:**  Node.js
+```sql
+-- Tabela de Usuários
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    username TEXT,
+    avatar TEXT,
+    bio TEXT,
+    timestamp BIGINT
+);
 
+-- Tabela de Assets (Roblox Files)
+CREATE TABLE IF NOT EXISTS assets (
+    id TEXT PRIMARY KEY,
+    user_id TEXT REFERENCES users(id),
+    author_name TEXT,
+    author_avatar TEXT,
+    title TEXT NOT NULL,
+    description TEXT,
+    category TEXT,
+    thumbnail_url TEXT,
+    file_data TEXT,
+    file_type TEXT,
+    download_count INTEGER DEFAULT 0,
+    timestamp BIGINT
+);
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+-- Tabela de Comentários
+CREATE TABLE IF NOT EXISTS comments (
+    id TEXT PRIMARY KEY,
+    asset_id TEXT REFERENCES assets(id) ON DELETE CASCADE,
+    user_id TEXT,
+    user_name TEXT,
+    user_avatar TEXT,
+    text TEXT,
+    timestamp BIGINT
+);
+```
+
+## Por que Neon?
+- **Escalabilidade**: Os dados aparecem para todos os usuários instantaneamente.
+- **Segurança**: As permissões de acesso aos arquivos continuam com o Puter, mas a lógica de busca e feed é processada no SQL.
+- **Relacionamentos**: Comentários e downloads são vinculados diretamente aos arquivos.
+
+**Site:** https://excaliburstore.vercel.app/
