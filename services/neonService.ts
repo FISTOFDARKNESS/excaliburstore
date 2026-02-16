@@ -1,99 +1,104 @@
 
-import { neon } from '@neondatabase/serverless';
 import { Asset, User, Category } from '../types';
 
 /**
- * Serviço de integração com o Neon PostgreSQL.
- * Utiliza o padrão de Tagged Templates do Neon para segurança contra SQL Injection 
- * e compatibilidade total de tipos com o driver serverless.
+ * Excalibur Storage Service
+ * Migrated from Neon to Puter.js for better security and reliability in frontend-only environments.
+ * Stores data in the user's Puter Documents folder.
  */
 
-const DATABASE_URL = "postgresql://neondb_owner:npg_ZIigvq76hfeD@ep-lucky-night-ahauzl87-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require";
+declare const puter: any;
 
-// Instância do driver Neon
-const sql = neon(DATABASE_URL);
+const DB_PATH = 'Documents/ExcaliburStore/registry_v3.json';
+
+interface DatabaseSchema {
+  assets: Asset[];
+  users: User[];
+  comments: Record<string, any[]>;
+}
+
+const getInitialDb = (): DatabaseSchema => ({
+  assets: [],
+  users: [],
+  comments: {}
+});
+
+async function readDb(): Promise<DatabaseSchema> {
+  try {
+    const data = await puter.fs.read(DB_PATH);
+    const text = await data.text();
+    return JSON.parse(text);
+  } catch (e) {
+    // If file doesn't exist, return empty schema
+    return getInitialDb();
+  }
+}
+
+async function writeDb(db: DatabaseSchema): Promise<void> {
+  try {
+    // Ensure directory exists
+    await puter.fs.mkdir('Documents/ExcaliburStore', { recursive: true });
+    await puter.fs.write(DB_PATH, JSON.stringify(db, null, 2));
+  } catch (e) {
+    console.error("Storage Error:", e);
+  }
+}
 
 export const neonDb = {
-  // Busca todos os assets com informações básicas e mapeia para a interface Asset
   async getAllAssets(): Promise<Asset[]> {
-    const rows = await sql`SELECT * FROM assets ORDER BY timestamp DESC`;
-    // Mapeia snake_case do DB para camelCase do Asset e garante campos obrigatórios da interface
-    return (rows || []).map(row => ({
-      id: row.id,
-      userId: row.user_id,
-      authorName: row.author_name,
-      authorAvatar: row.author_avatar,
-      title: row.title,
-      description: row.description || "",
-      category: row.category as Category,
-      thumbnailUrl: row.thumbnail_url,
-      fileData: row.file_data,
-      fileType: row.file_type as ('.rbxm' | '.rbxl' | '.rbxmx'),
-      downloadCount: Number(row.download_count || 0),
-      timestamp: Number(row.timestamp || Date.now()),
-      likes: [],
-      dislikes: [],
-      reports: [],
-      comments: [],
-      creditsRequired: false
-    }));
+    const db = await readDb();
+    return db.assets;
   },
 
-  // Busca todos os usuários e mapeia para a interface User
   async getAllUsers(): Promise<User[]> {
-    const rows = await sql`SELECT * FROM users`;
-    // Mapeia snake_case do DB para camelCase do User e garante campos obrigatórios
-    return (rows || []).map(row => ({
-      id: row.id,
-      name: row.name,
-      username: row.username,
-      avatar: row.avatar,
-      provider: 'google', // Default provider
-      followers: [],
-      following: [],
-      bio: row.bio || ""
-    }));
+    const db = await readDb();
+    return db.users;
   },
 
-  // Busca comentários de um asset
-  async getComments(assetId: string) {
-    return await sql`SELECT * FROM comments WHERE asset_id = ${assetId} ORDER BY timestamp DESC`;
-  },
-
-  // Upsert de usuário (insere ou atualiza se já existir)
   async saveUser(user: User) {
-    const ts = Date.now();
-    return await sql`
-      INSERT INTO users (id, name, username, avatar, bio, timestamp) 
-      VALUES (${user.id}, ${user.name}, ${user.username}, ${user.avatar}, ${user.bio || ""}, ${ts})
-      ON CONFLICT (id) DO UPDATE SET 
-      name = EXCLUDED.name, avatar = EXCLUDED.avatar, bio = EXCLUDED.bio
-    `;
+    const db = await readDb();
+    const index = db.users.findIndex(u => u.id === user.id);
+    if (index > -1) {
+      db.users[index] = { ...db.users[index], ...user };
+    } else {
+      db.users.push(user);
+    }
+    await writeDb(db);
   },
 
-  // Salva um novo asset
-  async saveAsset(asset: Asset | any) {
-    return await sql`
-      INSERT INTO assets (id, user_id, author_name, author_avatar, title, description, category, thumbnail_url, file_data, file_type, download_count, timestamp)
-      VALUES (${asset.id}, ${asset.userId}, ${asset.authorName}, ${asset.authorAvatar}, ${asset.title}, ${asset.description}, ${asset.category}, ${asset.thumbnailUrl}, ${asset.fileData}, ${asset.fileType}, ${asset.downloadCount || 0}, ${asset.timestamp})
-    `;
+  async saveAsset(asset: Asset) {
+    const db = await readDb();
+    db.assets.unshift(asset); // Newest first
+    await writeDb(db);
   },
 
-  // Adiciona comentário
   async saveComment(comment: any, assetId: string) {
-    return await sql`
-      INSERT INTO comments (id, asset_id, user_id, user_name, user_avatar, text, timestamp)
-      VALUES (${comment.id}, ${assetId}, ${comment.userId}, ${comment.userName}, ${comment.userAvatar}, ${comment.text}, ${comment.timestamp})
-    `;
+    const db = await readDb();
+    if (!db.comments[assetId]) db.comments[assetId] = [];
+    db.comments[assetId].unshift(comment);
+    
+    // Also update the asset's internal comment list for consistency in the UI
+    const asset = db.assets.find(a => a.id === assetId);
+    if (asset) {
+      if (!asset.comments) asset.comments = [];
+      asset.comments.unshift(comment);
+    }
+    
+    await writeDb(db);
   },
 
-  // Incrementa download
   async incrementDownload(assetId: string) {
-    return await sql`UPDATE assets SET download_count = download_count + 1 WHERE id = ${assetId}`;
+    const db = await readDb();
+    const asset = db.assets.find(a => a.id === assetId);
+    if (asset) {
+      asset.downloadCount = (asset.downloadCount || 0) + 1;
+      await writeDb(db);
+    }
   },
 
-  // Deleta asset
   async deleteAsset(assetId: string) {
-    return await sql`DELETE FROM assets WHERE id = ${assetId}`;
+    const db = await readDb();
+    db.assets = db.assets.filter(a => a.id !== assetId);
+    await writeDb(db);
   }
 };

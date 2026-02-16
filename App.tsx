@@ -102,14 +102,12 @@ export default function App() {
   const refreshData = async () => {
     setIsSyncing(true);
     try {
-      // Fix: Fetch database records and cast to interfaces defined in types.ts
       const [assetRes, userRes] = await Promise.all([
         neonDb.getAllAssets(),
         neonDb.getAllUsers()
       ]);
-      // Fix: Use explicit type casting to satisfy the State Action types
-      if (assetRes) setAssets(assetRes as Asset[]);
-      if (userRes) setUsers(userRes as User[]);
+      setAssets(assetRes || []);
+      setUsers(userRes || []);
     } catch (e) {
       console.error("Sync error:", e);
     } finally {
@@ -119,12 +117,10 @@ export default function App() {
   };
 
   const handleGoogleSignIn = useCallback(async (response: any) => {
-    console.log("Resposta do Google recebida. Iniciando autenticação...");
     setIsAuthenticating(true);
     try {
       const payload = parseJwt(response.credential);
       if (!payload) {
-        console.error("Erro ao processar Token do Google.");
         setIsAuthenticating(false);
         return;
       }
@@ -140,29 +136,17 @@ export default function App() {
         bio: "Excalibur Contributor"
       };
 
-      console.log("Login bem-sucedido para:", loggedUser.name);
-
-      // Estado local primeiro para agilidade na UI
       setCurrentUser(loggedUser);
       setShowLoginMenu(false);
       
-      try {
-        localStorage.setItem('ex_store_session_v1', JSON.stringify(loggedUser));
-      } catch (e) {}
+      localStorage.setItem('ex_store_session_v1', JSON.stringify(loggedUser));
 
-      // Sincroniza com DB em background
-      neonDb.saveUser(loggedUser)
-        .then(() => console.log("Perfil sincronizado com Neon DB."))
-        .catch(e => console.error("Erro ao salvar no banco:", e))
-        .finally(() => {
-          setIsAuthenticating(false);
-          refreshData();
-        });
-
-    } catch (err) {
-      console.error("Erro no callback de login:", err);
+      await neonDb.saveUser(loggedUser);
       setIsAuthenticating(false);
-      alert("Falha crítica no login. Verifique o console.");
+      refreshData();
+    } catch (err) {
+      console.error("Login Error:", err);
+      setIsAuthenticating(false);
     }
   }, []);
 
@@ -177,15 +161,13 @@ export default function App() {
       }
     }
     refreshData();
-    const interval = setInterval(refreshData, 60000);
+    const interval = setInterval(refreshData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Inicialização única do GSI
   useEffect(() => {
     const initGSI = () => {
       if ((window as any).google) {
-        console.log("Inicializando Google Identity Services...");
         (window as any).google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: handleGoogleSignIn,
@@ -220,7 +202,7 @@ export default function App() {
     try {
       await neonDb.incrementDownload(asset.id);
     } catch (e) {}
-    setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, downloadCount: a.downloadCount + 1 } : a));
+    setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, downloadCount: (a.downloadCount || 0) + 1 } : a));
     window.open(asset.fileData, '_blank');
   };
 
@@ -231,7 +213,7 @@ export default function App() {
       const rbxUrl = await uploadAndGetPublicUrl(files.rbx, 'Binaries');
       const thumbUrl = await uploadAndGetPublicUrl(files.thumb, 'Thumbnails');
       
-      const newAsset: any = {
+      const newAsset: Asset = {
         id: 'a_' + Date.now(),
         userId: currentUser.id,
         authorName: currentUser.name,
@@ -241,15 +223,21 @@ export default function App() {
         category: files.data.category,
         thumbnailUrl: thumbUrl,
         fileData: rbxUrl, 
-        fileType: files.rbx.name.substring(files.rbx.name.lastIndexOf('.')),
-        timestamp: Date.now()
+        fileType: files.rbx.name.substring(files.rbx.name.lastIndexOf('.')) as any,
+        timestamp: Date.now(),
+        downloadCount: 0,
+        likes: [],
+        dislikes: [],
+        reports: [],
+        comments: [],
+        creditsRequired: false
       };
 
       await neonDb.saveAsset(newAsset);
       setShowPublishModal(false);
       refreshData();
     } catch (e: any) {
-      alert("Erro ao publicar: " + e.message);
+      alert("Upload failed. Please try again.");
     } finally {
       setIsUploading(false);
     }
@@ -273,7 +261,7 @@ export default function App() {
       setNewComment('');
       setAssets(prev => prev.map(a => a.id === assetId ? { ...a, comments: [comment, ...(a.comments || [])] } : a));
     } catch (e) {
-      alert("Erro ao enviar comentário.");
+      alert("Comment failed to post.");
     }
   };
 
@@ -281,10 +269,10 @@ export default function App() {
     if (!searchQuery) return assets;
     const q = searchQuery.toLowerCase();
     return assets.filter(a => {
-      const title = a.title || "";
-      const desc = a.description || "";
-      const basic = title.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
-      const semantic = searchKeywords.some(kw => title.toLowerCase().includes(kw.toLowerCase()));
+      const title = (a.title || "").toLowerCase();
+      const desc = (a.description || "").toLowerCase();
+      const basic = title.includes(q) || desc.includes(q);
+      const semantic = searchKeywords.some(kw => title.includes(kw.toLowerCase()));
       return basic || semantic;
     });
   }, [assets, searchQuery, searchKeywords]);
@@ -330,9 +318,9 @@ export default function App() {
                 <h1 className="text-7xl font-black uppercase tracking-tighter text-ghost italic">REPOSITORY</h1>
                 <div className="absolute -top-16 left-1/2 -translate-x-1/2 flex items-center gap-2">
                    {isSyncing ? (
-                     <span className="text-[9px] font-black tracking-[0.3em] text-blue-500 uppercase animate-pulse">Sincronizando...</span>
+                     <span className="text-[9px] font-black tracking-[0.3em] text-blue-500 uppercase animate-pulse">Synchronizing Cloud...</span>
                    ) : (
-                     <span className="text-[9px] font-black tracking-[0.6em] text-zinc-800 uppercase">Cloud Records Live</span>
+                     <span className="text-[9px] font-black tracking-[0.6em] text-zinc-800 uppercase">Decentralized Archive</span>
                    )}
                 </div>
               </div>
@@ -343,9 +331,9 @@ export default function App() {
 
               <div className="space-y-5 pb-32">
                 {filteredAssets.map(a => <AssetRow key={a.id} asset={a} onClick={a => setSelectedAssetId(a.id)} onDownload={handleDownload} onAuthorClick={uid => { setViewingUserId(uid); setActiveTab('profile'); }} />)}
-                {filteredAssets.length === 0 && !isCloudLoaded && <div className="py-20 text-center animate-spin flex justify-center"><Icons.Plus /></div>}
-                {filteredAssets.length === 0 && isCloudLoaded && (
-                   <div className="py-20 text-center text-zinc-800 uppercase font-black text-[11px] tracking-widest">Nenhum registro encontrado.</div>
+                {!isCloudLoaded && <div className="py-20 text-center animate-spin flex justify-center text-zinc-800"><Icons.Plus /></div>}
+                {isCloudLoaded && filteredAssets.length === 0 && (
+                   <div className="py-20 text-center text-zinc-800 uppercase font-black text-[11px] tracking-widest">No entries found in archive.</div>
                 )}
               </div>
             </div>
@@ -374,7 +362,7 @@ export default function App() {
                   <img src={targetUser.avatar} className="w-32 h-32 rounded-[2rem] border-4 border-white/5 shadow-2xl object-cover" referrerPolicy="no-referrer" />
                   <div className="flex-grow text-center sm:text-left space-y-4">
                     <h2 className="text-5xl font-black uppercase italic tracking-tighter leading-none">{targetUser.name}</h2>
-                    <p className="text-zinc-500 text-lg leading-relaxed font-medium">{targetUser.bio || "Active contributor to Excalibur."}</p>
+                    <p className="text-zinc-500 text-lg leading-relaxed font-medium">{targetUser.bio || "Active contributor to Excalibur Store."}</p>
                   </div>
                 </div>
               </div>
@@ -433,7 +421,7 @@ export default function App() {
                     <span className="text-[10px] font-black uppercase text-zinc-800 tracking-[0.4em]">Asset Parameters</span>
                     <div className="grid grid-cols-2 gap-5">
                       <div className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl text-center">
-                        <p className="text-3xl font-black italic">{asset.downloadCount}</p>
+                        <p className="text-3xl font-black italic">{asset.downloadCount || 0}</p>
                         <p className="text-[9px] font-black uppercase text-zinc-800 mt-2">Transmissions</p>
                       </div>
                       <div className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl text-center">
@@ -466,12 +454,11 @@ const LoginMenu = ({ onClose, isAuthenticating }: { onClose: () => void, isAuthe
           (window as any).google.accounts.id.renderButton(el, { 
             theme: "outline", 
             size: "large", 
-            width: "320", // Alterado de 100% para valor numérico fixo (exigência do Google GSI)
+            width: "320",
             shape: "pill" 
           });
-          console.log("GSI Button Rendered.");
         } catch (e) {
-          console.error("GSI Render Error:", e);
+          console.error("GSI Error:", e);
         }
       } else if (attempts < 10) {
         attempts++;
@@ -488,8 +475,7 @@ const LoginMenu = ({ onClose, isAuthenticating }: { onClose: () => void, isAuthe
         {isAuthenticating ? (
           <div className="py-10 flex flex-col items-center gap-6">
             <div className="w-12 h-12 border-4 border-t-white border-white/10 rounded-full animate-spin" />
-            <h2 className="text-xl font-black uppercase italic animate-pulse">Authenticating...</h2>
-            <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Aguardando resposta do servidor.</p>
+            <h2 className="text-xl font-black uppercase italic animate-pulse">Syncing...</h2>
           </div>
         ) : (
           <>
@@ -525,7 +511,7 @@ const PublishModal = ({ onClose, onPublish, isUploading }: { onClose: () => void
         {isUploading ? (
           <div className="py-28 text-center">
             <div className="w-20 h-20 border-4 border-t-blue-500 rounded-full animate-spin mx-auto" />
-            <p className="mt-6 font-black italic">Broadcasting...</p>
+            <p className="mt-6 font-black italic">Broadcasting to Cloud...</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-10">
