@@ -15,8 +15,8 @@ export interface User {
   username: string;
   avatar: string;
   provider: 'google' | 'discord';
-  followers: string[]; // User IDs
-  following: string[]; // User IDs
+  followers: string[];
+  following: string[];
   bio?: string;
   links?: { label: string, url: string }[];
 }
@@ -30,6 +30,13 @@ export interface Comment {
   timestamp: number;
 }
 
+export interface EncryptionData {
+  publicKey: string;
+  privateKey?: string;
+  algorithm: string;
+  keySize: string;
+}
+
 export interface Asset {
   id: string;
   userId: string;
@@ -41,20 +48,13 @@ export interface Asset {
   thumbnailUrl: string;
   videoUrl?: string;
   fileType: '.rbxm' | '.rbxl' | '.rbxmx';
-  fileData?: string; // Base64 encoded roblox file
+  fileData?: string; 
   creditsRequired: boolean;
-  likes: string[]; // User IDs
-  dislikes: string[]; // User IDs
-  reports: string[]; // User IDs who reported
+  likes: string[];
+  dislikes: string[];
+  reports: string[];
   comments: Comment[];
   downloadCount: number;
   timestamp: number;
-}
-
-export interface AppState {
-  currentUser: User | null;
-  assets: Asset[];
-  searchQuery: string;
-  selectedCategory: Category | 'All';
-  sortBy: 'latest' | 'likes';
+  encryption?: EncryptionData;
 }
