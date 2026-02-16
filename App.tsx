@@ -44,7 +44,10 @@ const parseJwt = (token: string) => {
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
     const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
     return JSON.parse(jsonPayload);
-  } catch (e) { return null; }
+  } catch (e) { 
+    console.error("JWT Parse Error:", e);
+    return null; 
+  }
 };
 
 const AssetRow: React.FC<{
@@ -114,35 +117,50 @@ export default function App() {
   };
 
   const handleGoogleSignIn = useCallback(async (response: any) => {
+    console.log("Iniciando processamento de login Google...");
     try {
       const payload = parseJwt(response.credential);
-      if (!payload) return;
+      if (!payload) {
+        console.error("Payload do Google inválido");
+        return;
+      }
       
+      console.log("Usuário identificado:", payload.name);
+
       const loggedUser: User = { 
         id: payload.sub, 
-        name: payload.name, 
-        username: payload.email, 
-        avatar: payload.picture, 
+        name: payload.name || "Unknown User", 
+        username: payload.email || "", 
+        avatar: payload.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(payload.name || "U")}&background=random`, 
         provider: 'google', 
         followers: [], 
         following: [], 
         bio: "Excalibur Contributor"
       };
 
-      // Tenta salvar no banco, mas não trava o login se falhar
+      // 1. Fecha o menu imediatamente para resposta visual
+      setShowLoginMenu(false);
+      
+      // 2. Define o usuário no estado para logar no site
+      setCurrentUser(loggedUser);
+      console.log("Estado do usuário atualizado no site");
+
+      // 3. Tenta persistir no LocalStorage
       try {
-        await neonDb.saveUser(loggedUser);
-      } catch (dbErr) {
-        console.warn("DB Save failed, proceeding with local session", dbErr);
+        localStorage.setItem('ex_store_session_v1', JSON.stringify(loggedUser));
+      } catch (e) {
+        console.warn("LocalStorage bloqueado:", e);
       }
 
-      setCurrentUser(loggedUser);
-      localStorage.setItem('ex_store_session_v1', JSON.stringify(loggedUser));
-      setShowLoginMenu(false);
-      refreshData();
+      // 4. Salva no banco de dados em segundo plano (sem travar o login)
+      neonDb.saveUser(loggedUser)
+        .then(() => console.log("Usuário sincronizado com Neon DB"))
+        .catch(dbErr => console.error("Erro ao sincronizar com Neon DB:", dbErr))
+        .finally(() => refreshData());
+
     } catch (err) {
-      console.error("Login process error:", err);
-      alert("Falha no processamento do login. Tente novamente.");
+      console.error("Erro crítico no processo de login:", err);
+      alert("Ocorreu um erro ao processar seu login. Verifique o console do navegador.");
     }
   }, []);
 
@@ -150,18 +168,18 @@ export default function App() {
     const session = localStorage.getItem('ex_store_session_v1');
     if (session) {
       try {
-        setCurrentUser(JSON.parse(session));
+        const parsed = JSON.parse(session);
+        if (parsed && parsed.id) setCurrentUser(parsed);
       } catch (e) {
         localStorage.removeItem('ex_store_session_v1');
       }
     }
     refreshData();
 
-    const interval = setInterval(refreshData, 30000);
+    const interval = setInterval(refreshData, 60000);
     return () => clearInterval(interval);
   }, []);
 
-  // Inicialização do Google Identity Services
   useEffect(() => {
     const initGSI = () => {
       if ((window as any).google) {
@@ -178,7 +196,11 @@ export default function App() {
       initGSI();
     } else {
       const script = document.querySelector('script[src*="gsi/client"]');
-      script?.addEventListener('load', initGSI);
+      if (script) {
+        script.addEventListener('load', initGSI);
+      } else {
+        console.error("Script do Google Identity Services não encontrado no HTML");
+      }
     }
   }, [handleGoogleSignIn]);
 
@@ -260,8 +282,10 @@ export default function App() {
     if (!searchQuery) return assets;
     const q = searchQuery.toLowerCase();
     return assets.filter(a => {
-      const basic = (a.title || "").toLowerCase().includes(q) || (a.description || "").toLowerCase().includes(q);
-      const semantic = searchKeywords.some(kw => (a.title || "").toLowerCase().includes(kw.toLowerCase()));
+      const title = a.title || "";
+      const desc = a.description || "";
+      const basic = title.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
+      const semantic = searchKeywords.some(kw => title.toLowerCase().includes(kw.toLowerCase()));
       return basic || semantic;
     });
   }, [assets, searchQuery, searchKeywords]);
@@ -288,7 +312,7 @@ export default function App() {
             <div className="p-5 bg-white/5 rounded-3xl border border-white/5 space-y-4">
               <div className="flex items-center gap-3">
                 <img src={currentUser.avatar} className="w-9 h-9 rounded-full border border-white/10" referrerPolicy="no-referrer" />
-                <span className="text-[11px] font-bold">@{currentUser.name.split(' ')[0]}</span>
+                <span className="text-[11px] font-bold truncate">@{currentUser.name.split(' ')[0]}</span>
               </div>
               <button onClick={() => { setCurrentUser(null); localStorage.removeItem('ex_store_session_v1'); }} className="w-full text-[10px] font-black uppercase text-red-500/60 hover:text-red-500 text-left">Disconnect</button>
             </div>
@@ -307,7 +331,7 @@ export default function App() {
                 <h1 className="text-7xl font-black uppercase tracking-tighter text-ghost italic">REPOSITORY</h1>
                 <div className="absolute -top-16 left-1/2 -translate-x-1/2 flex items-center gap-2">
                    {isSyncing ? (
-                     <span className="text-[9px] font-black tracking-[0.3em] text-blue-500 uppercase animate-pulse">Syncing Neon DB...</span>
+                     <span className="text-[9px] font-black tracking-[0.3em] text-blue-500 uppercase animate-pulse">Sincronizando...</span>
                    ) : (
                      <span className="text-[9px] font-black tracking-[0.6em] text-zinc-800 uppercase">Cloud Records Live</span>
                    )}
@@ -320,7 +344,7 @@ export default function App() {
 
               <div className="space-y-5 pb-32">
                 {filteredAssets.map(a => <AssetRow key={a.id} asset={a} onClick={a => setSelectedAssetId(a.id)} onDownload={handleDownload} onAuthorClick={uid => { setViewingUserId(uid); setActiveTab('profile'); }} />)}
-                {filteredAssets.length === 0 && !isCloudLoaded && <div className="py-20 text-center animate-spin"><Icons.Plus /></div>}
+                {filteredAssets.length === 0 && !isCloudLoaded && <div className="py-20 text-center animate-spin flex justify-center"><Icons.Plus /></div>}
                 {filteredAssets.length === 0 && isCloudLoaded && (
                    <div className="py-20 text-center text-zinc-800 uppercase font-black text-[11px] tracking-widest">Nenhum registro encontrado.</div>
                 )}
@@ -435,6 +459,7 @@ export default function App() {
 
 const LoginMenu = ({ onClose }: { onClose: () => void }) => {
   useEffect(() => {
+    let attempts = 0;
     const renderBtn = () => {
       const el = document.getElementById("google-signin-btn");
       if (el && (window as any).google) {
@@ -444,7 +469,9 @@ const LoginMenu = ({ onClose }: { onClose: () => void }) => {
           width: "100%", 
           shape: "pill" 
         });
-      } else {
+        console.log("Botão de login renderizado com sucesso");
+      } else if (attempts < 10) {
+        attempts++;
         setTimeout(renderBtn, 500);
       }
     };
@@ -454,9 +481,9 @@ const LoginMenu = ({ onClose }: { onClose: () => void }) => {
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-8">
       <div className="absolute inset-0 bg-black/95 backdrop-blur-3xl" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-12 shadow-2xl">
+      <div className="relative w-full max-sm:mx-4 max-w-sm bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-12 shadow-2xl">
         <h2 className="text-4xl font-black uppercase italic text-center mb-10">Identity Sync</h2>
-        <div id="google-signin-btn" className="w-full mb-10 flex justify-center" />
+        <div id="google-signin-btn" className="w-full mb-10 flex justify-center min-h-[40px]" />
         <p className="text-[10px] text-zinc-800 text-center uppercase font-black tracking-widest px-4">Utilize sua conta Google para acessar o sistema.</p>
       </div>
     </div>
