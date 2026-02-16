@@ -8,15 +8,36 @@ import { getSearchKeywords } from './services/geminiService';
 // --- CONFIGURATION ---
 const GOOGLE_CLIENT_ID = "308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com";
 const ADMIN_EMAIL = "kaioadrik08@gmail.com";
-const REGISTRY_KV_KEY = 'excalibur_global_registry_v3';
+const REGISTRY_KV_KEY = 'excalibur_global_registry_v4';
 
 declare const puter: any;
 
 // --- Global API Helpers ---
 
 /**
+ * Robust helper to get a public URL from Puter FS, handling naming variations in v2.
+ */
+const safeGetPublicUrl = async (path: string): Promise<string> => {
+  try {
+    if (typeof puter.fs.get_public_url === 'function') {
+      return await puter.fs.get_public_url(path);
+    } else if (typeof puter.fs.getPublicUrl === 'function') {
+      return await puter.fs.getPublicUrl(path);
+    } else if (typeof puter.fs.share === 'function') {
+      const shared = await puter.fs.share(path);
+      return shared.url || shared;
+    }
+    throw new Error("Puter FS public URL method not found.");
+  } catch (e) {
+    console.error("Failed to get public URL for:", path, e);
+    // Return a local blob as last resort, though it won't work cross-device
+    const blob = await puter.fs.read(path);
+    return URL.createObjectURL(blob);
+  }
+};
+
+/**
  * Saves the registry (users and assets) to Puter's Key-Value store.
- * Puter KV is shared across all users of the same application.
  */
 const saveGlobalState = async (users: User[], assets: Asset[]) => {
   try {
@@ -42,8 +63,7 @@ const loadGlobalState = async (): Promise<{ users: User[], assets: Asset[] } | n
 };
 
 /**
- * Uploads a file to Puter FS and generates a PUBLIC URL.
- * Crucial for cross-device visibility.
+ * Uploads a file and ensures it has a public URL for cross-device access.
  */
 const uploadAndGetPublicUrl = async (file: File, folder: string = 'PublicAssets'): Promise<string> => {
   try {
@@ -55,13 +75,8 @@ const uploadAndGetPublicUrl = async (file: File, folder: string = 'PublicAssets'
     const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
     const path = `${dir}/${fileName}`;
     
-    // Write the file to user's cloud storage
     await puter.fs.write(path, file);
-    
-    // Generate a public link so other devices can download/view it
-    // Fixed: Using the correct Puter v2 method name
-    const publicUrl = await puter.fs.getPublicUrl(path);
-    return publicUrl;
+    return await safeGetPublicUrl(path);
   } catch (err: any) {
     console.error("Upload Error:", err);
     throw new Error(err.message || "Failed to upload file to cloud.");
@@ -149,7 +164,7 @@ export default function App() {
     };
     boot();
 
-    // Polling for updates from other devices every 10 seconds
+    // Check for updates every 15 seconds
     const interval = setInterval(async () => {
       setIsSyncing(true);
       const latest = await loadGlobalState();
@@ -157,8 +172,8 @@ export default function App() {
         setUsers(latest.users || []);
         setAssets(latest.assets || []);
       }
-      setIsSyncing(false);
-    }, 10000);
+      setTimeout(() => setIsSyncing(false), 1000);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, []);
@@ -210,7 +225,7 @@ export default function App() {
         provider: 'google', 
         followers: [], 
         following: [], 
-        bio: "Global Contributor", 
+        bio: "Global Repository Member", 
         links: [] 
       };
       setUsers(prev => [...prev, newUser]);
@@ -253,7 +268,7 @@ export default function App() {
         authorName: currentUser.name,
         authorAvatar: currentUser.avatar,
         title: files.data.title,
-        description: files.data.desc || "Premium Repository Asset.",
+        description: files.data.desc || "Verified Excalibur Asset.",
         category: files.data.category,
         thumbnailUrl: thumbUrl,
         fileData: rbxUrl, 
@@ -270,7 +285,7 @@ export default function App() {
       setAssets(prev => [newAsset, ...prev]);
       setShowPublishModal(false);
     } catch (e: any) {
-      alert("Cloud Sync Failure: " + e.message);
+      alert("Cloud Failure: " + e.message);
     } finally {
       setIsUploading(false);
     }
@@ -354,7 +369,13 @@ export default function App() {
               <div className="text-center space-y-0.5 relative">
                 <h1 className="text-5xl font-black uppercase tracking-tighter animate-in slide-in-from-bottom duration-500 italic">Central</h1>
                 <h1 className="text-5xl font-black uppercase tracking-tighter text-ghost italic">Repository</h1>
-                {isSyncing && <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-[7px] font-black tracking-[0.5em] text-blue-500 uppercase animate-pulse">Syncing Cloud Node...</div>}
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                   {isSyncing ? (
+                     <span className="text-[7px] font-black tracking-[0.4em] text-blue-500 uppercase animate-pulse">Syncing Cloud...</span>
+                   ) : (
+                     <span className="text-[7px] font-black tracking-[0.4em] text-zinc-800 uppercase">Cloud Connected</span>
+                   )}
+                </div>
               </div>
               <div className="relative max-w-xl mx-auto">
                 <input type="text" placeholder="Search the global network..." className="w-full search-pill rounded-xl py-4 px-6 text-lg font-bold text-center focus:outline-none placeholder:text-zinc-800 border border-white/5 transition-all focus:border-white/10" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
@@ -364,6 +385,7 @@ export default function App() {
                 {filteredAssets.length === 0 && (
                    <div className="py-20 text-center space-y-4">
                       <p className="text-zinc-800 font-bold uppercase tracking-widest text-[10px] italic">No synchronized data found.</p>
+                      <p className="text-[8px] text-zinc-600 max-w-[200px] mx-auto font-bold uppercase leading-relaxed">Ensure you are logged into the same Puter account on all devices for full synchronization.</p>
                       {!isCloudLoaded && <div className="w-4 h-4 border-2 border-white/5 border-t-white/30 rounded-full animate-spin mx-auto" />}
                    </div>
                 )}
@@ -372,7 +394,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Other tabs remain the same but use the updated AssetRow / functions */}
         {activeTab === 'vault' && (
           <div className="px-10 pt-20 pb-16 h-screen overflow-y-auto custom-scrollbar">
             <div className="max-w-2xl mx-auto">
