@@ -1,7 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-// O process.env.API_KEY é injetado pelo ambiente de execução.
 const ai = new GoogleGenAI({ apiKey: (process as any).env.API_KEY });
 
 export const getSearchKeywords = async (query: string): Promise<string[]> => {
@@ -18,20 +17,21 @@ export const getSearchKeywords = async (query: string): Promise<string[]> => {
       }
     });
 
-    const generatedText = response.text;
+    const textResult = response.text;
     
-    if (typeof generatedText === 'string' && generatedText.trim().length > 0) {
+    // Verificação explícita para o TypeScript (Fix TS18048)
+    if (textResult && typeof textResult === 'string') {
       try {
-        return JSON.parse(generatedText.trim());
+        return JSON.parse(textResult.trim());
       } catch (parseError) {
-        console.warn("Failed to parse Gemini JSON, falling back to query.", parseError);
+        console.warn("Falha ao processar JSON do Gemini:", parseError);
         return [query.toLowerCase()];
       }
     }
 
     return [query.toLowerCase()];
   } catch (error) {
-    console.error("Gemini Search Error:", error);
+    console.error("Erro na busca Gemini:", error);
     return [query.toLowerCase()];
   }
 };
