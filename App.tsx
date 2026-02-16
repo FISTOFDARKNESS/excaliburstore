@@ -20,8 +20,12 @@ const safeGetPublicUrl = async (path: string): Promise<string> => {
     }
     throw new Error("SDK Error");
   } catch (e) {
-    const blob = await puter.fs.read(path);
-    return URL.createObjectURL(blob);
+    try {
+      const blob = await puter.fs.read(path);
+      return URL.createObjectURL(blob);
+    } catch (innerE) {
+      return "";
+    }
   }
 };
 
@@ -51,7 +55,7 @@ const AssetRow: React.FC<{
 }> = ({ asset, onClick, onDownload, onAuthorClick }) => (
   <div onClick={() => onClick(asset)} className="premium-card rounded-2xl p-4 flex items-center gap-5 cursor-pointer group w-full border border-white/5 transition-all">
     <div className="w-20 h-20 rounded-xl overflow-hidden bg-zinc-900 flex-shrink-0 border border-white/5 shadow-inner">
-      <img src={asset.thumbnailUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={asset.title} />
+      <img src={asset.thumbnailUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={asset.title} loading="lazy" />
     </div>
     <div className="flex-grow min-w-0">
       <h3 className="font-bold text-lg text-white truncate group-hover:text-blue-400 transition-colors uppercase italic tracking-tight">{asset.title}</h3>
@@ -92,30 +96,91 @@ export default function App() {
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
 
-  // Sincronização em tempo real com Neon
   const refreshData = async () => {
     setIsSyncing(true);
     try {
-      const assetRes = await neonDb.getAllAssets();
-      const userRes = await neonDb.getAllUsers();
+      const [assetRes, userRes] = await Promise.all([
+        neonDb.getAllAssets(),
+        neonDb.getAllUsers()
+      ]);
       if (assetRes) setAssets(assetRes);
       if (userRes) setUsers(userRes);
     } catch (e) {
-      console.error("Sync failed", e);
+      console.error("Sync error:", e);
     } finally {
       setIsSyncing(false);
       setIsCloudLoaded(true);
     }
   };
 
+  const handleGoogleSignIn = useCallback(async (response: any) => {
+    try {
+      const payload = parseJwt(response.credential);
+      if (!payload) return;
+      
+      const loggedUser: User = { 
+        id: payload.sub, 
+        name: payload.name, 
+        username: payload.email, 
+        avatar: payload.picture, 
+        provider: 'google', 
+        followers: [], 
+        following: [], 
+        bio: "Excalibur Contributor"
+      };
+
+      // Tenta salvar no banco, mas não trava o login se falhar
+      try {
+        await neonDb.saveUser(loggedUser);
+      } catch (dbErr) {
+        console.warn("DB Save failed, proceeding with local session", dbErr);
+      }
+
+      setCurrentUser(loggedUser);
+      localStorage.setItem('ex_store_session_v1', JSON.stringify(loggedUser));
+      setShowLoginMenu(false);
+      refreshData();
+    } catch (err) {
+      console.error("Login process error:", err);
+      alert("Falha no processamento do login. Tente novamente.");
+    }
+  }, []);
+
   useEffect(() => {
     const session = localStorage.getItem('ex_store_session_v1');
-    if (session) setCurrentUser(JSON.parse(session));
+    if (session) {
+      try {
+        setCurrentUser(JSON.parse(session));
+      } catch (e) {
+        localStorage.removeItem('ex_store_session_v1');
+      }
+    }
     refreshData();
 
-    const interval = setInterval(refreshData, 30000); // Atualiza a cada 30s
+    const interval = setInterval(refreshData, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Inicialização do Google Identity Services
+  useEffect(() => {
+    const initGSI = () => {
+      if ((window as any).google) {
+        (window as any).google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleSignIn,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+      }
+    };
+
+    if ((window as any).google) {
+      initGSI();
+    } else {
+      const script = document.querySelector('script[src*="gsi/client"]');
+      script?.addEventListener('load', initGSI);
+    }
+  }, [handleGoogleSignIn]);
 
   useEffect(() => {
     const fetchKeywords = async () => {
@@ -130,39 +195,10 @@ export default function App() {
     return () => clearTimeout(delay);
   }, [searchQuery]);
 
-  const handleGoogleSignIn = useCallback(async (response: any) => {
-    const payload = parseJwt(response.credential);
-    if (!payload) return;
-    
-    const loggedUser: User = { 
-      id: payload.sub, 
-      name: payload.name, 
-      username: payload.email, 
-      avatar: payload.picture, 
-      provider: 'google', 
-      followers: [], 
-      following: [], 
-      bio: "Excalibur Contributor"
-    };
-
-    await neonDb.saveUser(loggedUser);
-    setCurrentUser(loggedUser);
-    localStorage.setItem('ex_store_session_v1', JSON.stringify(loggedUser));
-    setShowLoginMenu(false);
-    refreshData();
-  }, []);
-
-  useEffect(() => {
-    if ((window as any).google) {
-      (window as any).google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleSignIn,
-      });
-    }
-  }, [handleGoogleSignIn]);
-
   const handleDownload = async (asset: Asset) => {
-    await neonDb.incrementDownload(asset.id);
+    try {
+      await neonDb.incrementDownload(asset.id);
+    } catch (e) {}
     setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, downloadCount: a.downloadCount + 1 } : a));
     window.open(asset.fileData, '_blank');
   };
@@ -192,7 +228,7 @@ export default function App() {
       setShowPublishModal(false);
       refreshData();
     } catch (e: any) {
-      alert("Error: " + e.message);
+      alert("Erro ao publicar: " + e.message);
     } finally {
       setIsUploading(false);
     }
@@ -211,19 +247,21 @@ export default function App() {
       timestamp: Date.now()
     };
 
-    await neonDb.saveComment(comment, assetId);
-    setNewComment('');
-    
-    // Atualiza comentários no estado local
-    setAssets(prev => prev.map(a => a.id === assetId ? { ...a, comments: [comment, ...(a.comments || [])] } : a));
+    try {
+      await neonDb.saveComment(comment, assetId);
+      setNewComment('');
+      setAssets(prev => prev.map(a => a.id === assetId ? { ...a, comments: [comment, ...(a.comments || [])] } : a));
+    } catch (e) {
+      alert("Erro ao enviar comentário.");
+    }
   };
 
   const filteredAssets = useMemo(() => {
     if (!searchQuery) return assets;
     const q = searchQuery.toLowerCase();
     return assets.filter(a => {
-      const basic = a.title.toLowerCase().includes(q) || a.description.toLowerCase().includes(q);
-      const semantic = searchKeywords.some(kw => a.title.toLowerCase().includes(kw.toLowerCase()));
+      const basic = (a.title || "").toLowerCase().includes(q) || (a.description || "").toLowerCase().includes(q);
+      const semantic = searchKeywords.some(kw => (a.title || "").toLowerCase().includes(kw.toLowerCase()));
       return basic || semantic;
     });
   }, [assets, searchQuery, searchKeywords]);
@@ -249,7 +287,7 @@ export default function App() {
           {currentUser ? (
             <div className="p-5 bg-white/5 rounded-3xl border border-white/5 space-y-4">
               <div className="flex items-center gap-3">
-                <img src={currentUser.avatar} className="w-9 h-9 rounded-full border border-white/10" />
+                <img src={currentUser.avatar} className="w-9 h-9 rounded-full border border-white/10" referrerPolicy="no-referrer" />
                 <span className="text-[11px] font-bold">@{currentUser.name.split(' ')[0]}</span>
               </div>
               <button onClick={() => { setCurrentUser(null); localStorage.removeItem('ex_store_session_v1'); }} className="w-full text-[10px] font-black uppercase text-red-500/60 hover:text-red-500 text-left">Disconnect</button>
@@ -283,6 +321,9 @@ export default function App() {
               <div className="space-y-5 pb-32">
                 {filteredAssets.map(a => <AssetRow key={a.id} asset={a} onClick={a => setSelectedAssetId(a.id)} onDownload={handleDownload} onAuthorClick={uid => { setViewingUserId(uid); setActiveTab('profile'); }} />)}
                 {filteredAssets.length === 0 && !isCloudLoaded && <div className="py-20 text-center animate-spin"><Icons.Plus /></div>}
+                {filteredAssets.length === 0 && isCloudLoaded && (
+                   <div className="py-20 text-center text-zinc-800 uppercase font-black text-[11px] tracking-widest">Nenhum registro encontrado.</div>
+                )}
               </div>
             </div>
           </div>
@@ -307,16 +348,18 @@ export default function App() {
             <div className="max-w-4xl mx-auto space-y-20 pb-40">
               <div className="premium-card rounded-[3rem] p-12 border border-white/5 relative overflow-hidden group">
                 <div className="flex flex-col sm:flex-row items-center gap-12 relative z-10">
-                  <img src={targetUser.avatar} className="w-32 h-32 rounded-[2rem] border-4 border-white/5 shadow-2xl object-cover" />
+                  <img src={targetUser.avatar} className="w-32 h-32 rounded-[2rem] border-4 border-white/5 shadow-2xl object-cover" referrerPolicy="no-referrer" />
                   <div className="flex-grow text-center sm:text-left space-y-4">
                     <h2 className="text-5xl font-black uppercase italic tracking-tighter leading-none">{targetUser.name}</h2>
-                    <p className="text-zinc-500 text-lg leading-relaxed font-medium">{targetUser.bio}</p>
+                    <p className="text-zinc-500 text-lg leading-relaxed font-medium">{targetUser.bio || "Active contributor to Excalibur."}</p>
                   </div>
                 </div>
               </div>
               <div className="space-y-10">
                 <h3 className="text-2xl font-black uppercase italic tracking-tight opacity-20">Contributions</h3>
-                <div className="space-y-5">{assets.filter(a => a.userId === targetUser.id).map(a => <AssetRow key={a.id} asset={a} onClick={a => setSelectedAssetId(a.id)} onDownload={handleDownload} />)}</div>
+                <div className="space-y-5">
+                  {assets.filter(a => a.userId === targetUser.id).map(a => <AssetRow key={a.id} asset={a} onClick={a => setSelectedAssetId(a.id)} onDownload={handleDownload} />)}
+                </div>
               </div>
             </div>
           </div>
@@ -332,7 +375,7 @@ export default function App() {
               <div className="relative w-full max-w-6xl bg-[#080808] border border-white/10 rounded-[3rem] shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[85vh]">
                 <div className="flex-grow p-10 overflow-y-auto custom-scrollbar space-y-12">
                   <div className="aspect-video w-full rounded-[2.5rem] overflow-hidden border border-white/5 bg-zinc-900">
-                    <img src={asset.thumbnailUrl} className="w-full h-full object-cover" />
+                    <img src={asset.thumbnailUrl} className="w-full h-full object-cover" alt={asset.title} />
                   </div>
                   <div className="space-y-5">
                     <h2 className="text-4xl font-black uppercase italic tracking-tighter">{asset.title}</h2>
@@ -343,13 +386,22 @@ export default function App() {
                     <div className="space-y-8">
                       {currentUser && (
                         <div className="flex gap-5">
-                          <img src={currentUser.avatar} className="w-12 h-12 rounded-2xl border border-white/10" />
+                          <img src={currentUser.avatar} className="w-12 h-12 rounded-2xl border border-white/10" referrerPolicy="no-referrer" />
                           <div className="flex-grow space-y-4">
                             <textarea className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] p-5 text-base text-white focus:outline-none focus:border-blue-500/30 h-28 resize-none" placeholder="Add to the conversation..." value={newComment} onChange={(e) => setNewComment(e.target.value)} />
                             <button onClick={() => handleAddComment(asset.id)} className="bg-white text-black text-[10px] font-black uppercase px-8 py-3 rounded-xl">Post</button>
                           </div>
                         </div>
                       )}
+                      {(asset.comments || []).map(c => (
+                        <div key={c.id} className="flex gap-5">
+                          <img src={c.userAvatar} className="w-10 h-10 rounded-xl border border-white/5" referrerPolicy="no-referrer" />
+                          <div>
+                            <p className="text-[11px] font-black uppercase text-white mb-1">{c.userName}</p>
+                            <p className="text-sm text-zinc-500">{c.text}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -383,14 +435,29 @@ export default function App() {
 
 const LoginMenu = ({ onClose }: { onClose: () => void }) => {
   useEffect(() => {
-    if ((window as any).google) (window as any).google.accounts.id.renderButton(document.getElementById("google-signin-btn"), { theme: "outline", size: "large", width: "100%", shape: "pill" });
+    const renderBtn = () => {
+      const el = document.getElementById("google-signin-btn");
+      if (el && (window as any).google) {
+        (window as any).google.accounts.id.renderButton(el, { 
+          theme: "outline", 
+          size: "large", 
+          width: "100%", 
+          shape: "pill" 
+        });
+      } else {
+        setTimeout(renderBtn, 500);
+      }
+    };
+    renderBtn();
   }, []);
+
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-8">
       <div className="absolute inset-0 bg-black/95 backdrop-blur-3xl" onClick={onClose} />
       <div className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-12 shadow-2xl">
         <h2 className="text-4xl font-black uppercase italic text-center mb-10">Identity Sync</h2>
         <div id="google-signin-btn" className="w-full mb-10 flex justify-center" />
+        <p className="text-[10px] text-zinc-800 text-center uppercase font-black tracking-widest px-4">Utilize sua conta Google para acessar o sistema.</p>
       </div>
     </div>
   );
@@ -405,7 +472,7 @@ const PublishModal = ({ onClose, onPublish, isUploading }: { onClose: () => void
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!thumb || !rbxFile) return alert("Files required.");
+    if (!thumb || !rbxFile) return alert("Arquivos obrigatórios.");
     onPublish({ thumb, rbx: rbxFile, data: { title, desc, category } });
   };
 
@@ -414,26 +481,29 @@ const PublishModal = ({ onClose, onPublish, isUploading }: { onClose: () => void
       <div className="absolute inset-0 bg-black/95 backdrop-blur-3xl" onClick={onClose} />
       <div className="relative w-full max-w-xl bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-12 max-h-[90vh] overflow-y-auto custom-scrollbar">
         {isUploading ? (
-          <div className="py-28 text-center"><div className="w-20 h-20 border-4 border-t-blue-500 rounded-full animate-spin mx-auto" /><p className="mt-6 font-black italic">Broadcasting...</p></div>
+          <div className="py-28 text-center">
+            <div className="w-20 h-20 border-4 border-t-blue-500 rounded-full animate-spin mx-auto" />
+            <p className="mt-6 font-black italic">Broadcasting...</p>
+          </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-10">
             <h2 className="text-3xl font-black uppercase italic">Upload Entry</h2>
             <input required type="text" placeholder="Asset Label" className="w-full bg-white/5 border border-white/10 rounded-2xl p-5" value={title} onChange={e => setTitle(e.target.value)} />
             <textarea className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 h-32" placeholder="Technical Spec" value={desc} onChange={e => setDesc(e.target.value)} />
-            <label className="w-full p-8 border-2 border-dashed rounded-[2rem] flex flex-col items-center cursor-pointer">
-              <input type="file" accept=".rbxm,.rbxl" onChange={e => e.target.files && setRbxFile(e.target.files[0])} className="hidden" />
-              <span className="font-black italic">{rbxFile ? rbxFile.name : "Select Binary (.rbxm/.rbxl)"}</span>
+            <label className="w-full p-8 border-2 border-dashed rounded-[2rem] flex flex-col items-center cursor-pointer hover:border-white/20 transition-all">
+              <input type="file" accept=".rbxm,.rbxl,.rbxmx" onChange={e => e.target.files && setRbxFile(e.target.files[0])} className="hidden" />
+              <span className="font-black italic text-zinc-500">{rbxFile ? rbxFile.name : "Select Binary (.rbxm/.rbxl)"}</span>
             </label>
             <div className="grid grid-cols-2 gap-8">
-              <label className="h-32 border-2 border-dashed rounded-[2rem] flex items-center justify-center cursor-pointer overflow-hidden">
+              <label className="h-32 border-2 border-dashed rounded-[2rem] flex items-center justify-center cursor-pointer overflow-hidden hover:border-white/20 transition-all">
                 <input type="file" accept="image/*" onChange={e => e.target.files && setThumb(e.target.files[0])} className="hidden" />
-                {thumb ? <img src={URL.createObjectURL(thumb)} className="w-full h-full object-cover" /> : <span className="font-black">Thumb</span>}
+                {thumb ? <img src={URL.createObjectURL(thumb)} className="w-full h-full object-cover" /> : <span className="font-black text-zinc-500">Thumb</span>}
               </label>
               <select className="bg-white/5 border border-white/10 rounded-[2rem] p-6 font-black uppercase" value={category} onChange={e => setCategory(e.target.value as Category)}>
                 {Object.values(Category).map(cat => <option key={cat} value={cat} className="bg-black">{cat}</option>)}
               </select>
             </div>
-            <button type="submit" className="w-full bg-white text-black font-black uppercase py-6 rounded-[2rem]">Broadcast</button>
+            <button type="submit" className="w-full bg-white text-black font-black uppercase py-6 rounded-[2rem] active:scale-95 transition-all">Broadcast</button>
           </form>
         )}
       </div>
