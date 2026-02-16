@@ -6,7 +6,6 @@ import { getSearchKeywords } from './services/geminiService';
 import { neonDb } from './services/neonService';
 
 const GOOGLE_CLIENT_ID = "308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com";
-const ADMIN_EMAIL = "kaioadrik08@gmail.com";
 
 declare const puter: any;
 
@@ -92,6 +91,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [showLoginMenu, setShowLoginMenu] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -117,16 +117,16 @@ export default function App() {
   };
 
   const handleGoogleSignIn = useCallback(async (response: any) => {
-    console.log("Iniciando processamento de login Google...");
+    console.log("Resposta do Google recebida. Iniciando autenticação...");
+    setIsAuthenticating(true);
     try {
       const payload = parseJwt(response.credential);
       if (!payload) {
-        console.error("Payload do Google inválido");
+        console.error("Erro ao processar Token do Google.");
+        setIsAuthenticating(false);
         return;
       }
       
-      console.log("Usuário identificado:", payload.name);
-
       const loggedUser: User = { 
         id: payload.sub, 
         name: payload.name || "Unknown User", 
@@ -138,29 +138,29 @@ export default function App() {
         bio: "Excalibur Contributor"
       };
 
-      // 1. Fecha o menu imediatamente para resposta visual
+      console.log("Login bem-sucedido para:", loggedUser.name);
+
+      // Estado local primeiro para agilidade na UI
+      setCurrentUser(loggedUser);
       setShowLoginMenu(false);
       
-      // 2. Define o usuário no estado para logar no site
-      setCurrentUser(loggedUser);
-      console.log("Estado do usuário atualizado no site");
-
-      // 3. Tenta persistir no LocalStorage
       try {
         localStorage.setItem('ex_store_session_v1', JSON.stringify(loggedUser));
-      } catch (e) {
-        console.warn("LocalStorage bloqueado:", e);
-      }
+      } catch (e) {}
 
-      // 4. Salva no banco de dados em segundo plano (sem travar o login)
+      // Sincroniza com DB em background
       neonDb.saveUser(loggedUser)
-        .then(() => console.log("Usuário sincronizado com Neon DB"))
-        .catch(dbErr => console.error("Erro ao sincronizar com Neon DB:", dbErr))
-        .finally(() => refreshData());
+        .then(() => console.log("Perfil sincronizado com Neon DB."))
+        .catch(e => console.error("Erro ao salvar no banco:", e))
+        .finally(() => {
+          setIsAuthenticating(false);
+          refreshData();
+        });
 
     } catch (err) {
-      console.error("Erro crítico no processo de login:", err);
-      alert("Ocorreu um erro ao processar seu login. Verifique o console do navegador.");
+      console.error("Erro no callback de login:", err);
+      setIsAuthenticating(false);
+      alert("Falha crítica no login. Verifique o console.");
     }
   }, []);
 
@@ -175,19 +175,20 @@ export default function App() {
       }
     }
     refreshData();
-
     const interval = setInterval(refreshData, 60000);
     return () => clearInterval(interval);
   }, []);
 
+  // Inicialização única do GSI
   useEffect(() => {
     const initGSI = () => {
       if ((window as any).google) {
+        console.log("Inicializando Google Identity Services...");
         (window as any).google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: handleGoogleSignIn,
-          auto_select: false,
-          cancel_on_tap_outside: true,
+          ux_mode: "popup",
+          auto_select: false
         });
       }
     };
@@ -196,11 +197,7 @@ export default function App() {
       initGSI();
     } else {
       const script = document.querySelector('script[src*="gsi/client"]');
-      if (script) {
-        script.addEventListener('load', initGSI);
-      } else {
-        console.error("Script do Google Identity Services não encontrado no HTML");
-      }
+      script?.addEventListener('load', initGSI);
     }
   }, [handleGoogleSignIn]);
 
@@ -451,25 +448,29 @@ export default function App() {
         </div>
       )}
 
-      {showLoginMenu && <LoginMenu onClose={() => setShowLoginMenu(false)} />}
+      {showLoginMenu && <LoginMenu isAuthenticating={isAuthenticating} onClose={() => setShowLoginMenu(false)} />}
       {showPublishModal && <PublishModal isUploading={isUploading} onPublish={handlePublish} onClose={() => setShowPublishModal(false)} />}
     </div>
   );
 }
 
-const LoginMenu = ({ onClose }: { onClose: () => void }) => {
+const LoginMenu = ({ onClose, isAuthenticating }: { onClose: () => void, isAuthenticating: boolean }) => {
   useEffect(() => {
     let attempts = 0;
     const renderBtn = () => {
       const el = document.getElementById("google-signin-btn");
       if (el && (window as any).google) {
-        (window as any).google.accounts.id.renderButton(el, { 
-          theme: "outline", 
-          size: "large", 
-          width: "100%", 
-          shape: "pill" 
-        });
-        console.log("Botão de login renderizado com sucesso");
+        try {
+          (window as any).google.accounts.id.renderButton(el, { 
+            theme: "outline", 
+            size: "large", 
+            width: "320", // Alterado de 100% para valor numérico fixo (exigência do Google GSI)
+            shape: "pill" 
+          });
+          console.log("GSI Button Rendered.");
+        } catch (e) {
+          console.error("GSI Render Error:", e);
+        }
       } else if (attempts < 10) {
         attempts++;
         setTimeout(renderBtn, 500);
@@ -481,10 +482,22 @@ const LoginMenu = ({ onClose }: { onClose: () => void }) => {
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-8">
       <div className="absolute inset-0 bg-black/95 backdrop-blur-3xl" onClick={onClose} />
-      <div className="relative w-full max-sm:mx-4 max-w-sm bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-12 shadow-2xl">
-        <h2 className="text-4xl font-black uppercase italic text-center mb-10">Identity Sync</h2>
-        <div id="google-signin-btn" className="w-full mb-10 flex justify-center min-h-[40px]" />
-        <p className="text-[10px] text-zinc-800 text-center uppercase font-black tracking-widest px-4">Utilize sua conta Google para acessar o sistema.</p>
+      <div className="relative w-full max-sm:mx-4 max-w-sm bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-12 shadow-2xl text-center">
+        {isAuthenticating ? (
+          <div className="py-10 flex flex-col items-center gap-6">
+            <div className="w-12 h-12 border-4 border-t-white border-white/10 rounded-full animate-spin" />
+            <h2 className="text-xl font-black uppercase italic animate-pulse">Authenticating...</h2>
+            <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Aguardando resposta do servidor.</p>
+          </div>
+        ) : (
+          <>
+            <h2 className="text-4xl font-black uppercase italic mb-10">Identity Sync</h2>
+            <div className="flex justify-center mb-10 min-h-[44px]">
+               <div id="google-signin-btn" />
+            </div>
+            <p className="text-[10px] text-zinc-800 uppercase font-black tracking-widest px-4">Utilize sua conta Google para sincronizar seu perfil.</p>
+          </>
+        )}
       </div>
     </div>
   );
