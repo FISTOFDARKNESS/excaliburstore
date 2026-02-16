@@ -41,9 +41,11 @@ export interface Asset {
   thumbnailUrl: string;
   videoUrl?: string;
   fileType: '.rbxm' | '.rbxl' | '.rbxmx';
+  fileData?: string; // Base64 encoded roblox file
   creditsRequired: boolean;
   likes: string[]; // User IDs
   dislikes: string[]; // User IDs
+  reports: string[]; // User IDs who reported
   comments: Comment[];
   downloadCount: number;
   timestamp: number;

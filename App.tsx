@@ -5,7 +5,6 @@ import { MOCK_ASSETS, MOCK_USERS, Icons } from './constants';
 import { getSearchKeywords } from './services/geminiService';
 
 // --- CONFIGURATION ---
-// REPLACE THIS WITH YOUR ACTUAL CLIENT ID FROM GOOGLE CLOUD CONSOLE
 const GOOGLE_CLIENT_ID = "308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com";
 
 // --- Helpers ---
@@ -44,14 +43,10 @@ const parseJwt = (token: string) => {
 
 // --- Components ---
 
-const LoginMenu = ({ onClose, onGoogleSignIn, onDiscordMockSignIn }: { 
-  onClose: () => void, 
-  onGoogleSignIn: (response: any) => void,
-  onDiscordMockSignIn: () => void 
+const LoginMenu = ({ onClose }: { 
+  onClose: () => void
 }) => {
   useEffect(() => {
-    // Initialize Google Sign-In button after component mounts
-    // Fix: cast window to any to access the google property provided by the external Google Identity Services script
     if ((window as any).google) {
       (window as any).google.accounts.id.renderButton(
         document.getElementById("google-login-btn-container"),
@@ -65,25 +60,11 @@ const LoginMenu = ({ onClose, onGoogleSignIn, onDiscordMockSignIn }: {
       <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={onClose} />
       <div className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-[32px] p-8 space-y-6 shadow-2xl">
         <div className="text-center space-y-2">
-          <h3 className="text-2xl font-black uppercase tracking-tight italic text-white">Select Identity</h3>
-          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Connect to Excalibur Network</p>
+          <h3 className="text-2xl font-black uppercase tracking-tight italic text-white">Identity Access</h3>
+          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Login via Google to access BloxMarket</p>
         </div>
-        <div className="space-y-4">
+        <div className="space-y-4 pt-4">
           <div id="google-login-btn-container" className="flex justify-center transition-all hover:scale-105" />
-          
-          <div className="flex items-center gap-4 py-2">
-            <div className="h-[1px] flex-grow bg-white/5"></div>
-            <span className="text-[8px] font-black text-zinc-700 uppercase tracking-widest">OR</span>
-            <div className="h-[1px] flex-grow bg-white/5"></div>
-          </div>
-
-          <button 
-            onClick={onDiscordMockSignIn}
-            className="w-full bg-[#5865F2] text-white font-black uppercase py-3.5 rounded-full text-[11px] tracking-widest flex items-center justify-center gap-3 hover:scale-105 transition-all"
-          >
-            <img src="https://discord.com/favicon.ico" className="w-4 h-4" alt="" />
-            Continue with Discord
-          </button>
         </div>
         <button onClick={onClose} className="w-full text-[9px] text-zinc-600 font-black uppercase tracking-[0.2em] hover:text-white transition-colors">Cancel</button>
       </div>
@@ -189,12 +170,17 @@ const AssetRow = ({ asset, onClick, onDownload, onAuthorClick }: { asset: Asset,
         <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">{asset.category}</span>
       </div>
     </div>
-    <button 
-      onClick={(e) => { e.stopPropagation(); onDownload(asset); }}
-      className="bg-white/5 border border-white/10 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all"
-    >
-      GET FILE
-    </button>
+    <div className="flex flex-col items-end gap-2">
+      <button 
+        onClick={(e) => { e.stopPropagation(); onDownload(asset); }}
+        className="bg-white/5 border border-white/10 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all"
+      >
+        GET FILE
+      </button>
+      {asset.reports.length > 0 && (
+         <span className="text-[8px] font-black text-red-500/50 uppercase tracking-widest">{asset.reports.length} Reports</span>
+      )}
+    </div>
   </div>
 );
 
@@ -205,7 +191,8 @@ const AssetDetailModal: React.FC<{
   onLike: (id: string) => void;
   onDownload: (asset: Asset) => void;
   onAuthorClick: (uid: string) => void;
-}> = ({ asset, onClose, currentUser, onLike, onDownload, onAuthorClick }) => {
+  onReport: (id: string) => void;
+}> = ({ asset, onClose, currentUser, onLike, onDownload, onAuthorClick, onReport }) => {
   const embedUrl = getEmbedUrl(asset.videoUrl || '');
 
   return (
@@ -234,9 +221,20 @@ const AssetDetailModal: React.FC<{
           </div>
         </div>
         <div className="w-full md:w-[320px] bg-[#0a0a0a] border-l border-white/5 p-10 flex flex-col shrink-0">
-          <button onClick={onClose} className="self-end p-2 text-zinc-600 hover:text-white transition-transform hover:rotate-90">
-            <Icons.Plus />
-          </button>
+          <div className="flex justify-between items-center">
+            <button 
+              onClick={() => onReport(asset.id)}
+              className="text-[9px] font-black uppercase text-zinc-700 hover:text-red-500 transition-colors tracking-widest flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5" />
+              </svg>
+              Report Asset
+            </button>
+            <button onClick={onClose} className="p-2 text-zinc-600 hover:text-white transition-transform hover:rotate-90">
+              <Icons.Plus />
+            </button>
+          </div>
           <div className="flex-grow mt-10 space-y-6">
             <button 
               onClick={() => onAuthorClick(asset.userId)}
@@ -284,11 +282,13 @@ const PublishModal = ({ onClose, onPublish }: { onClose: () => void, onPublish: 
     fileType: '.rbxm',
     creditsRequired: false,
     thumbnailUrl: '',
-    videoUrl: ''
+    videoUrl: '',
+    fileData: ''
   });
 
   const thumbInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const rbxInputRef = useRef<HTMLInputElement>(null);
 
   const handleThumbUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -306,10 +306,28 @@ const PublishModal = ({ onClose, onPublish }: { onClose: () => void, onPublish: 
     }
   };
 
+  const handleRbxFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const extension = file.name.substring(file.name.lastIndexOf('.'));
+      if (['.rbxm', '.rbxl', '.rbxmx'].includes(extension)) {
+        const base64 = await fileToBase64(file);
+        setFormData(prev => ({ ...prev, fileData: base64, fileType: extension as any }));
+      } else {
+        alert("Invalid file type! Please upload .rbxm, .rbxl, or .rbxmx");
+        e.target.value = '';
+      }
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.thumbnailUrl) {
         alert("Please upload a thumbnail image.");
+        return;
+    }
+    if (!formData.fileData) {
+        alert("Please upload the Roblox file (.rbxm, .rbxl, or .rbxmx).");
         return;
     }
     onPublish(formData);
@@ -340,6 +358,33 @@ const PublishModal = ({ onClose, onPublish }: { onClose: () => void, onPublish: 
           </div>
 
           <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 ml-2">Roblox File (.rbxm, .rbxl, .rbxmx)</label>
+            <input 
+              type="file"
+              accept=".rbxm,.rbxl,.rbxmx"
+              ref={rbxInputRef}
+              onChange={handleRbxFileUpload}
+              className="hidden"
+            />
+            <button 
+              type="button"
+              onClick={() => rbxInputRef.current?.click()}
+              className={`w-full p-4 rounded-2xl border flex items-center justify-center gap-3 font-black text-[11px] uppercase tracking-widest transition-all ${
+                formData.fileData ? 'bg-blue-500/10 border-blue-500/50 text-blue-400' : 'bg-white/5 border-white/10 text-zinc-600 hover:text-white hover:border-white/20'
+              }`}
+            >
+              {formData.fileData ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  File Attached ({formData.fileType})
+                </>
+              ) : "Select Roblox File *"}
+            </button>
+          </div>
+
+          <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 ml-2">Description</label>
             <textarea 
               required
@@ -350,7 +395,7 @@ const PublishModal = ({ onClose, onPublish }: { onClose: () => void, onPublish: 
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 ml-2">Category</label>
               <select 
@@ -361,18 +406,6 @@ const PublishModal = ({ onClose, onPublish }: { onClose: () => void, onPublish: 
                 {Object.values(Category).map(cat => (
                   <option key={cat} value={cat} className="bg-black">{cat}</option>
                 ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 ml-2">File Format</label>
-              <select 
-                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:outline-none focus:border-white/20 transition-all appearance-none"
-                value={formData.fileType}
-                onChange={e => setFormData({ ...formData, fileType: e.target.value as any })}
-              >
-                <option value=".rbxm" className="bg-black">.rbxm (Model)</option>
-                <option value=".rbxl" className="bg-black">.rbxl (Place)</option>
-                <option value=".rbxmx" className="bg-black">.rbxmx (XML Model)</option>
               </select>
             </div>
           </div>
@@ -390,14 +423,14 @@ const PublishModal = ({ onClose, onPublish }: { onClose: () => void, onPublish: 
               <button 
                 type="button"
                 onClick={() => thumbInputRef.current?.click()}
-                className="w-full bg-white/5 border border-white/10 border-dashed rounded-2xl p-6 text-zinc-500 hover:text-white hover:border-white/20 transition-all flex flex-col items-center justify-center gap-2 overflow-hidden"
+                className="w-full bg-white/5 border border-white/10 border-dashed rounded-2xl p-6 text-zinc-500 hover:text-white hover:border-white/20 transition-all flex flex-col items-center justify-center gap-2 overflow-hidden min-h-[100px]"
               >
                 {formData.thumbnailUrl ? (
                     <img src={formData.thumbnailUrl} className="w-full h-16 object-cover rounded-lg" alt="preview" />
                 ) : (
                     <>
                         <div className="w-8 h-8 opacity-20"><Icons.Plus /></div>
-                        <span className="text-[9px] font-black uppercase tracking-widest">Select Image</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest">Select Image *</span>
                     </>
                 )}
               </button>
@@ -414,7 +447,7 @@ const PublishModal = ({ onClose, onPublish }: { onClose: () => void, onPublish: 
               <button 
                 type="button"
                 onClick={() => videoInputRef.current?.click()}
-                className="w-full bg-white/5 border border-white/10 border-dashed rounded-2xl p-6 text-zinc-500 hover:text-white hover:border-white/20 transition-all flex flex-col items-center justify-center gap-2 overflow-hidden"
+                className="w-full bg-white/5 border border-white/10 border-dashed rounded-2xl p-6 text-zinc-500 hover:text-white hover:border-white/20 transition-all flex flex-col items-center justify-center gap-2 overflow-hidden min-h-[100px]"
               >
                 {formData.videoUrl ? (
                     <div className="flex items-center gap-2 text-blue-400">
@@ -458,18 +491,18 @@ const PublishModal = ({ onClose, onPublish }: { onClose: () => void, onPublish: 
 
 export default function App() {
   const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('blox_users');
+    const saved = localStorage.getItem('blox_users_v3');
     return saved ? JSON.parse(saved) : MOCK_USERS;
   });
 
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('blox_user');
+    const saved = localStorage.getItem('blox_user_v3');
     return saved ? JSON.parse(saved) : null;
   });
   
   const [assets, setAssets] = useState<Asset[]>(() => {
-    const saved = localStorage.getItem('blox_assets');
-    return saved ? JSON.parse(saved) : MOCK_ASSETS;
+    const saved = localStorage.getItem('blox_assets_v3');
+    return saved ? JSON.parse(saved) : MOCK_ASSETS.map(a => ({...a, reports: []}));
   });
 
   const [activeTab, setActiveTab] = useState('home');
@@ -486,7 +519,6 @@ export default function App() {
 
   // Initialize Google Identity Services
   useEffect(() => {
-    // Fix: cast window to any to access the google property provided by the external script to satisfy TypeScript
     if ((window as any).google) {
       (window as any).google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
@@ -497,12 +529,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('blox_users', JSON.stringify(users));
+    localStorage.setItem('blox_users_v3', JSON.stringify(users));
   }, [users]);
 
   useEffect(() => {
-    localStorage.setItem('blox_user', JSON.stringify(currentUser));
+    localStorage.setItem('blox_user_v3', JSON.stringify(currentUser));
   }, [currentUser]);
+
+  useEffect(() => {
+    localStorage.setItem('blox_assets_v3', JSON.stringify(assets));
+  }, [assets]);
 
   useEffect(() => {
     document.body.className = `theme-${theme}`;
@@ -516,7 +552,6 @@ export default function App() {
       return;
     }
 
-    // Check if user already exists in local list
     const existingUser = users.find(u => u.id === payload.sub);
     
     if (existingUser) {
@@ -539,30 +574,12 @@ export default function App() {
     setShowLoginMenu(false);
   };
 
-  const handleDiscordMockSignIn = () => {
-    const mockUser: User = {
-      id: 'u_' + Math.random().toString(36).substr(2, 5),
-      name: 'Discord Wizard',
-      username: 'd_wiz_rbx',
-      avatar: 'https://picsum.photos/seed/d/200',
-      provider: 'discord',
-      followers: [],
-      following: [],
-      bio: "Mastering the Roblox metaverse one brick at a time.",
-      links: [{ label: "Portfolio", url: "https://roblox.com" }, { label: "Discord", url: "https://discord.gg" }]
-    };
-    setUsers(prev => [...prev, mockUser]);
-    setCurrentUser(mockUser);
-    setShowLoginMenu(false);
-  };
-
   const handleLogout = () => {
-    // Fix: cast window to any to access the google property provided by the external script to satisfy TypeScript
     if ((window as any).google) {
       (window as any).google.accounts.id.disableAutoSelect();
     }
     setCurrentUser(null);
-    localStorage.removeItem('blox_user');
+    localStorage.removeItem('blox_user_v3');
     setActiveTab('home');
     setViewingUserId(null);
   };
@@ -577,14 +594,12 @@ export default function App() {
     const isFollowing = currentUser.following.includes(targetId);
 
     setUsers(prev => prev.map(u => {
-      // Update target user's followers
       if (u.id === targetId) {
         const followers = isFollowing 
           ? u.followers.filter(id => id !== currentUser.id)
           : [...u.followers, currentUser.id];
         return { ...u, followers };
       }
-      // Update current user's following
       if (u.id === currentUser.id) {
         const following = isFollowing
           ? u.following.filter(id => id !== targetId)
@@ -597,21 +612,47 @@ export default function App() {
     }));
   };
 
+  const handleReport = (assetId: string) => {
+    if (!currentUser) {
+      setShowLoginMenu(true);
+      return;
+    }
+    setAssets(prev => prev.map(a => {
+      if (a.id === assetId && !a.reports.includes(currentUser.id)) {
+        alert("Report submitted. Our moderation team will review this file.");
+        return { ...a, reports: [...a.reports, currentUser.id] };
+      }
+      return a;
+    }));
+  };
+
   const handleDownload = (asset: Asset) => {
     if (!currentUser) {
       setShowLoginMenu(true);
       return;
     }
     setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, downloadCount: a.downloadCount + 1 } : a));
-    const data = `RBX_ASSET_CONTENT: ${asset.title}\nFORMAT: ${asset.fileType}`;
-    const blob = new Blob([data], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `${asset.title.replace(/\s+/g, '_')}${asset.fileType}`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    
+    // Use uploaded file data if available, otherwise mock it
+    const data = asset.fileData || `RBX_ASSET_CONTENT: ${asset.title}\nFORMAT: ${asset.fileType}`;
+    
+    if (asset.fileData) {
+      const link = document.createElement('a');
+      link.href = asset.fileData;
+      link.setAttribute('download', `${asset.title.replace(/\s+/g, '_')}${asset.fileType}`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      const blob = new Blob([data], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${asset.title.replace(/\s+/g, '_')}${asset.fileType}`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const onAssetClick = (a: Asset) => {
@@ -638,9 +679,11 @@ export default function App() {
       thumbnailUrl: data.thumbnailUrl || 'https://picsum.photos/seed/default/800/450',
       videoUrl: data.videoUrl,
       fileType: data.fileType as any || '.rbxm',
+      fileData: data.fileData,
       creditsRequired: !!data.creditsRequired,
       likes: [],
       dislikes: [],
+      reports: [],
       comments: [],
       downloadCount: 0,
       timestamp: Date.now()
@@ -648,7 +691,6 @@ export default function App() {
 
     const updatedAssets = [newAsset, ...assets];
     setAssets(updatedAssets);
-    localStorage.setItem('blox_assets', JSON.stringify(updatedAssets));
     setShowPublishModal(false);
   };
 
@@ -962,14 +1004,13 @@ export default function App() {
           onLike={(id) => {}} // Placeholder
           onDownload={handleDownload}
           onAuthorClick={onAuthorClick}
+          onReport={handleReport}
         />
       )}
 
       {showLoginMenu && (
         <LoginMenu 
           onClose={() => setShowLoginMenu(false)} 
-          onGoogleSignIn={handleGoogleSignIn}
-          onDiscordMockSignIn={handleDiscordMockSignIn}
         />
       )}
       {showPublishModal && <PublishModal onPublish={handlePublish} onClose={() => setShowPublishModal(false)} />}

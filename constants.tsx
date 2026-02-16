@@ -37,6 +37,8 @@ export const MOCK_ASSETS: Asset[] = [
     creditsRequired: true,
     likes: ['u1', 'u2'],
     dislikes: [],
+    // Fix: Add missing reports property
+    reports: [],
     comments: [
       {
         id: 'c1',
@@ -63,6 +65,8 @@ export const MOCK_ASSETS: Asset[] = [
     creditsRequired: false,
     likes: ['u1'],
     dislikes: [],
+    // Fix: Add missing reports property
+    reports: [],
     comments: [],
     downloadCount: 890,
     timestamp: Date.now() - 3600000
@@ -80,6 +84,8 @@ export const MOCK_ASSETS: Asset[] = [
     creditsRequired: false,
     likes: ['u1', 'u2'],
     dislikes: [],
+    // Fix: Add missing reports property
+    reports: [],
     comments: [],
     downloadCount: 2310,
     timestamp: Date.now() - 1000000
@@ -97,6 +103,8 @@ export const MOCK_ASSETS: Asset[] = [
     creditsRequired: true,
     likes: ['u2'],
     dislikes: [],
+    // Fix: Add missing reports property
+    reports: [],
     comments: [],
     downloadCount: 450,
     timestamp: Date.now() - 50000000
