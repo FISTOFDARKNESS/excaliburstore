@@ -14,6 +14,13 @@ declare const puter: any;
 
 const saveGlobalState = async (users: User[], assets: Asset[]) => {
   try {
+    // Ensure parent directory exists to avoid 'dest_does_not_exist'
+    const dir = 'Documents/ExcaliburCloud';
+    try {
+      await puter.fs.mkdir(dir, { recursive: true });
+    } catch (e) {
+      // Ignore directory already exists errors
+    }
     const data = JSON.stringify({ users, assets });
     await puter.fs.write(GLOBAL_DATA_PATH, data);
   } catch (e) {
@@ -295,8 +302,13 @@ export default function App() {
   };
 
   const handleDownload = async (asset: Asset) => {
-    await downloadFromCloud(asset.fileData!, asset.title + asset.fileType);
-    setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, downloadCount: a.downloadCount + 1 } : a));
+    try {
+      await downloadFromCloud(asset.fileData!, asset.title + asset.fileType);
+      // Increment download count locally and it will sync to cloud via useEffect
+      setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, downloadCount: a.downloadCount + 1 } : a));
+    } catch (e) {
+      console.error("Download failed:", e);
+    }
   };
 
   const handlePublish = async (files: { thumb: File, rbx: File, data: any }) => {
