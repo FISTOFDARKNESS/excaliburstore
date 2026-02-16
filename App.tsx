@@ -8,7 +8,7 @@ import { getSearchKeywords } from './services/geminiService';
 // --- CONFIGURATION ---
 const GOOGLE_CLIENT_ID = "308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com";
 const ADMIN_EMAIL = "kaioadrik08@gmail.com";
-const REGISTRY_KV_KEY = 'excalibur_global_registry_v2';
+const REGISTRY_KV_KEY = 'excalibur_global_registry_v3';
 
 declare const puter: any;
 
@@ -16,7 +16,7 @@ declare const puter: any;
 
 /**
  * Saves the registry (users and assets) to Puter's Key-Value store.
- * Puter KV is shared across all users of the same application ID.
+ * Puter KV is shared across all users of the same application.
  */
 const saveGlobalState = async (users: User[], assets: Asset[]) => {
   try {
@@ -43,7 +43,7 @@ const loadGlobalState = async (): Promise<{ users: User[], assets: Asset[] } | n
 
 /**
  * Uploads a file to Puter FS and generates a PUBLIC URL.
- * Without a public URL, other users cannot see the images or download the files.
+ * Crucial for cross-device visibility.
  */
 const uploadAndGetPublicUrl = async (file: File, folder: string = 'PublicAssets'): Promise<string> => {
   try {
@@ -55,26 +55,17 @@ const uploadAndGetPublicUrl = async (file: File, folder: string = 'PublicAssets'
     const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
     const path = `${dir}/${fileName}`;
     
-    // Write the file
+    // Write the file to user's cloud storage
     await puter.fs.write(path, file);
     
-    // Make the file public and get the URL
-    // Note: Puter.js v2 uses get_public_url or similar. 
-    // In standard Puter apps, puter.fs.get_public_url is the standard way.
-    const publicUrl = await puter.fs.get_public_url(path);
+    // Generate a public link so other devices can download/view it
+    // Fixed: Using the correct Puter v2 method name
+    const publicUrl = await puter.fs.getPublicUrl(path);
     return publicUrl;
   } catch (err: any) {
     console.error("Upload Error:", err);
     throw new Error(err.message || "Failed to upload file to cloud.");
   }
-};
-
-const deleteFromCloud = async (path: string) => {
-  try {
-    // We try to delete by path if we have it, or by parsing the public URL
-    // For simplicity in this mock-like environment, we skip physical deletion for foreign users
-    await puter.fs.delete(path);
-  } catch (e) {}
 };
 
 const parseJwt = (token: string) => {
@@ -131,6 +122,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isCloudLoaded, setIsCloudLoaded] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const [activeTab, setActiveTab] = useState('home');
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
@@ -145,11 +137,9 @@ export default function App() {
   // Initial Boot: Load from Global KV Store
   useEffect(() => {
     const boot = async () => {
-      // Local session check
       const storedLocalUser = localStorage.getItem('ex_cur_user_v2');
       if (storedLocalUser) setCurrentUser(JSON.parse(storedLocalUser));
 
-      // Global data fetch
       const cloudData = await loadGlobalState();
       if (cloudData) {
         setUsers(cloudData.users || []);
@@ -159,14 +149,16 @@ export default function App() {
     };
     boot();
 
-    // Set up a refresh interval to get latest uploads from other users
+    // Polling for updates from other devices every 10 seconds
     const interval = setInterval(async () => {
+      setIsSyncing(true);
       const latest = await loadGlobalState();
       if (latest) {
         setUsers(latest.users || []);
         setAssets(latest.assets || []);
       }
-    }, 15000); // Sync every 15 seconds
+      setIsSyncing(false);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, []);
@@ -187,7 +179,7 @@ export default function App() {
     }
   }, [currentUser]);
 
-  // Semantic keyword update effect using Gemini
+  // Semantic keyword search via Gemini
   useEffect(() => {
     const updateKeywords = async () => {
       if (searchQuery.trim().length >= 2) {
@@ -197,7 +189,7 @@ export default function App() {
         setSearchKeywords([]);
       }
     };
-    const timer = setTimeout(updateKeywords, 600);
+    const timer = setTimeout(updateKeywords, 800);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -218,7 +210,7 @@ export default function App() {
         provider: 'google', 
         followers: [], 
         following: [], 
-        bio: "Repository Contributor", 
+        bio: "Global Contributor", 
         links: [] 
       };
       setUsers(prev => [...prev, newUser]);
@@ -228,25 +220,21 @@ export default function App() {
   }, [users]);
 
   useEffect(() => {
-    const initGoogle = () => {
-      if ((window as any).google) {
-        (window as any).google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleSignIn,
-          auto_select: false,
-        });
-      }
-    };
-    if ((window as any).google) initGoogle();
+    if ((window as any).google) {
+      (window as any).google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleSignIn,
+        auto_select: false,
+      });
+    }
   }, [handleGoogleSignIn]);
 
   const handleDownload = (asset: Asset) => {
-    // Increments counter locally and globally
     setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, downloadCount: a.downloadCount + 1 } : a));
-    // Trigger browser download via public URL
     const a = document.createElement('a');
     a.href = asset.fileData || '';
     a.download = `${asset.title}${asset.fileType}`;
+    a.target = "_blank";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -265,7 +253,7 @@ export default function App() {
         authorName: currentUser.name,
         authorAvatar: currentUser.avatar,
         title: files.data.title,
-        description: files.data.desc || "Premium Excalibur Repository File.",
+        description: files.data.desc || "Premium Repository Asset.",
         category: files.data.category,
         thumbnailUrl: thumbUrl,
         fileData: rbxUrl, 
@@ -291,7 +279,7 @@ export default function App() {
   const handleDelete = async (assetId: string) => {
     const asset = assets.find(a => a.id === assetId);
     if (!asset || (asset.userId !== currentUser?.id && !isAdmin)) return;
-    if (confirm("Permanently remove this file from the global repository?")) {
+    if (confirm("Permanently remove this entry from the global repository?")) {
       setAssets(prev => prev.filter(a => a.id !== assetId));
       setSelectedAssetId(null);
     }
@@ -363,18 +351,19 @@ export default function App() {
         {activeTab === 'home' && (
           <div className="px-10 pt-20 pb-16 h-screen overflow-y-auto custom-scrollbar">
             <div className="max-w-2xl mx-auto space-y-12">
-              <div className="text-center space-y-0.5">
+              <div className="text-center space-y-0.5 relative">
                 <h1 className="text-5xl font-black uppercase tracking-tighter animate-in slide-in-from-bottom duration-500 italic">Central</h1>
                 <h1 className="text-5xl font-black uppercase tracking-tighter text-ghost italic">Repository</h1>
+                {isSyncing && <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-[7px] font-black tracking-[0.5em] text-blue-500 uppercase animate-pulse">Syncing Cloud Node...</div>}
               </div>
               <div className="relative max-w-xl mx-auto">
-                <input type="text" placeholder="Search the global ecosystem..." className="w-full search-pill rounded-xl py-4 px-6 text-lg font-bold text-center focus:outline-none placeholder:text-zinc-800 border border-white/5 transition-all focus:border-white/10" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                <input type="text" placeholder="Search the global network..." className="w-full search-pill rounded-xl py-4 px-6 text-lg font-bold text-center focus:outline-none placeholder:text-zinc-800 border border-white/5 transition-all focus:border-white/10" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
               </div>
               <div className="space-y-3.5 animate-in fade-in duration-700">
                 {filteredAssets.map(a => <AssetRow key={a.id} asset={a} onClick={a => setSelectedAssetId(a.id)} onDownload={handleDownload} onAuthorClick={uid => { setViewingUserId(uid); setActiveTab('profile'); }} />)}
                 {filteredAssets.length === 0 && (
                    <div className="py-20 text-center space-y-4">
-                      <p className="text-zinc-800 font-bold uppercase tracking-widest text-[10px] italic">No assets synchronized yet.</p>
+                      <p className="text-zinc-800 font-bold uppercase tracking-widest text-[10px] italic">No synchronized data found.</p>
                       {!isCloudLoaded && <div className="w-4 h-4 border-2 border-white/5 border-t-white/30 rounded-full animate-spin mx-auto" />}
                    </div>
                 )}
@@ -383,15 +372,16 @@ export default function App() {
           </div>
         )}
 
+        {/* Other tabs remain the same but use the updated AssetRow / functions */}
         {activeTab === 'vault' && (
           <div className="px-10 pt-20 pb-16 h-screen overflow-y-auto custom-scrollbar">
             <div className="max-w-2xl mx-auto">
               <div className="flex justify-between items-end mb-10">
                 <div className="space-y-0.5">
                   <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">Global Vault</h1>
-                  <p className="text-zinc-600 text-[8px] font-bold uppercase tracking-[0.4em] ml-1">Live Synchronized Node</p>
+                  <p className="text-zinc-600 text-[8px] font-bold uppercase tracking-[0.4em] ml-1">Live Distributed Entries</p>
                 </div>
-                {currentUser && <button onClick={() => setShowPublishModal(true)} className="bg-white text-black px-5 py-2.5 rounded-lg font-black uppercase text-[9px] tracking-widest hover:brightness-90 transition-all shadow-lg">Publish New Asset</button>}
+                {currentUser && <button onClick={() => setShowPublishModal(true)} className="bg-white text-black px-5 py-2.5 rounded-lg font-black uppercase text-[9px] tracking-widest hover:brightness-90 transition-all shadow-lg">Broadcast Asset</button>}
               </div>
               <div className="space-y-3.5">
                 {currentUser ? (
@@ -399,13 +389,13 @@ export default function App() {
                     assets.filter(a => a.userId === currentUser.id).map(a => <AssetRow key={a.id} asset={a} onClick={a => setSelectedAssetId(a.id)} onDownload={handleDownload} />)
                   ) : (
                     <div className="py-20 text-center border border-dashed border-white/5 rounded-2xl">
-                      <p className="text-zinc-800 font-bold uppercase tracking-widest text-[9px]">Your vault is empty. Start publishing files.</p>
+                      <p className="text-zinc-800 font-bold uppercase tracking-widest text-[9px]">Broadcast your first asset to the network.</p>
                     </div>
                   )
                 ) : (
                   <div className="py-20 text-center bg-white/5 rounded-2xl border border-white/5">
-                    <p className="text-zinc-600 font-bold text-[9px] uppercase tracking-widest mb-3.5">Authenticate to manage your global entries</p>
-                    <button onClick={() => setShowLoginMenu(true)} className="bg-white text-black px-5 py-2 rounded-full font-bold text-[8px] uppercase tracking-widest">Connect Identity</button>
+                    <p className="text-zinc-600 font-bold text-[9px] uppercase tracking-widest mb-3.5">Connect identity to manage nodes</p>
+                    <button onClick={() => setShowLoginMenu(true)} className="bg-white text-black px-5 py-2 rounded-full font-bold text-[8px] uppercase tracking-widest">Login</button>
                   </div>
                 )}
               </div>
@@ -421,13 +411,13 @@ export default function App() {
                   <img src={targetUser.avatar} className="w-24 h-24 rounded-2xl border-4 border-white/5 shadow-xl object-cover" />
                   <div className="flex-grow text-center sm:text-left space-y-2">
                     <h2 className="text-3xl font-black uppercase italic tracking-tighter leading-none">{targetUser.name}</h2>
-                    <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">Node ID: @{targetUser.username.split('@')[0]}</p>
-                    <p className="text-zinc-500 text-xs leading-relaxed font-medium max-w-sm">{targetUser.bio || "Verified member of the Excalibur Global Repository."}</p>
+                    <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">Node: @{targetUser.username.split('@')[0]}</p>
+                    <p className="text-zinc-500 text-xs leading-relaxed font-medium max-w-sm">{targetUser.bio || "Verified member of the Excalibur network."}</p>
                   </div>
                 </div>
               </div>
               <div className="space-y-6">
-                <h3 className="text-lg font-bold uppercase italic tracking-tight border-b border-white/5 pb-3">User Contribution Library</h3>
+                <h3 className="text-lg font-bold uppercase italic tracking-tight border-b border-white/5 pb-3">Library Contributions</h3>
                 <div className="space-y-3.5">{assets.filter(a => a.userId === targetUser.id).map(a => <AssetRow key={a.id} asset={a} onClick={a => setSelectedAssetId(a.id)} onDownload={handleDownload} />)}</div>
               </div>
             </div>
@@ -450,26 +440,19 @@ export default function App() {
                   <div className="space-y-3">
                     <div className="flex items-center gap-2.5">
                       <h2 className="text-2xl font-black uppercase italic tracking-tighter leading-tight">{asset.title}</h2>
-                      <div className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 text-[7px] font-black uppercase tracking-widest">GLOBAL SYNC</div>
+                      <div className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 text-[7px] font-black uppercase tracking-widest">NETWORK SYNCED</div>
                     </div>
                     <p className="text-zinc-500 text-sm leading-relaxed font-medium">{asset.description}</p>
                   </div>
-                  
-                  {/* Comments */}
-                  <div className="pt-8 border-t border-white/5 space-y-6">
-                    <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-600 italic">User Feedback ({asset.comments.length})</h4>
+                  <div className="pt-8 border-t border-white/5 space-y-6 pb-10">
+                    <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-600 italic">Global Discussion ({asset.comments.length})</h4>
                     <div className="space-y-4">
                       {currentUser && (
                         <div className="flex gap-3">
                           <img src={currentUser.avatar} className="w-8 h-8 rounded-full border border-white/10" />
                           <div className="flex-grow space-y-2">
-                            <textarea 
-                              className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500/30 h-20 resize-none transition-all placeholder:text-zinc-800"
-                              placeholder="Post your feedback..."
-                              value={newComment}
-                              onChange={(e) => setNewComment(e.target.value)}
-                            />
-                            <button onClick={() => handleAddComment(asset.id)} className="bg-white text-black text-[8px] font-black uppercase px-4 py-2 rounded-lg tracking-widest hover:brightness-90 transition-all shadow-lg">Post Comment</button>
+                            <textarea className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500/30 h-20 resize-none placeholder:text-zinc-800" placeholder="Contribute to the conversation..." value={newComment} onChange={(e) => setNewComment(e.target.value)} />
+                            <button onClick={() => handleAddComment(asset.id)} className="bg-white text-black text-[8px] font-black uppercase px-4 py-2 rounded-lg tracking-widest hover:brightness-90 transition-all shadow-lg">Submit Feedback</button>
                           </div>
                         </div>
                       )}
@@ -494,20 +477,20 @@ export default function App() {
                 <div className="w-full md:w-[300px] bg-[#0a0a0a] border-l border-white/5 p-6 flex flex-col justify-between">
                   <div className="space-y-6">
                     <div className="flex justify-between items-center">
-                       <span className="text-[8px] font-bold uppercase text-zinc-700 tracking-widest">Metadata</span>
-                       <button onClick={() => setSelectedAssetId(null)} className="bg-white/5 p-1.5 rounded-full rotate-45 text-zinc-500"><Icons.Plus /></button>
+                       <span className="text-[8px] font-bold uppercase text-zinc-700 tracking-widest">Cloud Metadata</span>
+                       <button onClick={() => setSelectedAssetId(null)} className="bg-white/5 p-1.5 rounded-full rotate-45 text-zinc-500 hover:text-white transition-colors"><Icons.Plus /></button>
                     </div>
 
                     <div className="space-y-3">
                       {(isOwner || isAdmin) && (
-                        <button onClick={() => handleDelete(asset.id)} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-600/10 border border-red-600/20 text-red-500 text-[9px] font-bold uppercase tracking-widest hover:bg-red-600/20 transition-all shadow-lg">Remove Global Entry</button>
+                        <button onClick={() => handleDelete(asset.id)} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-600/10 border border-red-600/20 text-red-500 text-[9px] font-bold uppercase tracking-widest hover:bg-red-600/20 transition-all shadow-lg">Wipe Global Node</button>
                       )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="p-4 bg-white/[0.02] border border-white/5 rounded-xl text-center shadow-inner">
                         <p className="text-xl font-bold italic tracking-tighter">{asset.downloadCount}</p>
-                        <p className="text-[7px] font-bold uppercase text-zinc-700 mt-1">Global Downloads</p>
+                        <p className="text-[7px] font-bold uppercase text-zinc-700 mt-1">Downloads</p>
                       </div>
                       <div className="p-4 bg-white/[0.02] border border-white/5 rounded-xl text-center shadow-inner">
                         <p className="text-xs font-bold text-blue-500 uppercase">{asset.fileType.substring(1)}</p>
@@ -524,7 +507,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <button onClick={() => handleDownload(asset)} className="w-full bg-white text-black font-black uppercase py-4 rounded-2xl text-[10px] tracking-widest hover:brightness-90 transition-all mt-6 shadow-2xl active:scale-95">DOWNLOAD NOW</button>
+                  <button onClick={() => handleDownload(asset)} className="w-full bg-white text-black font-black uppercase py-4 rounded-2xl text-[10px] tracking-widest hover:brightness-90 transition-all mt-6 shadow-2xl active:scale-95">DOWNLOAD RESOURCE</button>
                 </div>
               </div>
             );
@@ -533,19 +516,11 @@ export default function App() {
       )}
 
       {showLoginMenu && <LoginMenu onClose={() => setShowLoginMenu(false)} />}
-      
-      {showPublishModal && (
-        <PublishModal 
-          isUploading={isUploading} 
-          onPublish={handlePublish} 
-          onClose={() => setShowPublishModal(false)} 
-        />
-      )}
+      {showPublishModal && <PublishModal isUploading={isUploading} onPublish={handlePublish} onClose={() => setShowPublishModal(false)} />}
     </div>
   );
 }
 
-// Fixed: Define missing LoginMenu component
 const LoginMenu = ({ onClose }: { onClose: () => void }) => {
   useEffect(() => {
     if ((window as any).google) {
@@ -555,20 +530,17 @@ const LoginMenu = ({ onClose }: { onClose: () => void }) => {
       );
     }
   }, []);
-
   return (
     <div className="fixed inset-0 z-[4000] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/95 backdrop-blur-md" onClick={onClose} />
       <div className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <div className="text-center space-y-2 mb-10">
-          <h2 className="text-2xl font-black uppercase italic tracking-tighter leading-none">Authentication</h2>
-          <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest italic">Join the Excalibur Global Network</p>
+          <h2 className="text-2xl font-black uppercase italic tracking-tighter leading-none">Access Node</h2>
+          <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest italic">Join the Distributed Repository</p>
         </div>
-        
         <div id="google-signin-btn" className="w-full mb-6" />
-        
         <p className="text-[8px] text-zinc-800 text-center font-bold uppercase tracking-widest leading-relaxed px-4">
-          By continuing, you agree to synchronize your data across our distributed cloud architecture.
+          Authenticate to enable broadcast and library management across the Excalibur cloud.
         </p>
       </div>
     </div>
@@ -596,8 +568,8 @@ const PublishModal = ({ onClose, onPublish, isUploading }: { onClose: () => void
           <div className="py-16 flex flex-col items-center justify-center space-y-6 text-center">
             <div className="w-12 h-12 border-4 border-white/5 border-t-blue-500 rounded-full animate-spin" />
             <div className="space-y-1">
-              <h2 className="text-xl font-bold text-white tracking-tight uppercase italic">Broadcasting to Global Vault...</h2>
-              <p className="text-zinc-600 text-[9px] font-bold uppercase tracking-widest italic">Synchronizing assets across all nodes</p>
+              <h2 className="text-xl font-bold text-white tracking-tight uppercase italic">Broadcasting Resource...</h2>
+              <p className="text-zinc-600 text-[9px] font-bold uppercase tracking-widest italic">Synchronizing globally with cloud nodes</p>
             </div>
           </div>
         ) : (
@@ -612,11 +584,11 @@ const PublishModal = ({ onClose, onPublish, isUploading }: { onClose: () => void
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-1">
                 <label className="text-[9px] font-bold uppercase text-zinc-600 tracking-wider ml-1">Asset Label</label>
-                <input required type="text" placeholder="e.g. Modern UI Engine" className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-all" value={title} onChange={e => setTitle(e.target.value)} />
+                <input required type="text" placeholder="e.g. Optimized Graphics Module" className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-all placeholder:text-zinc-800" value={title} onChange={e => setTitle(e.target.value)} />
               </div>
               <div className="space-y-1">
                 <label className="text-[9px] font-bold uppercase text-zinc-600 tracking-wider ml-1">Summary</label>
-                <textarea className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-all h-24 resize-none" placeholder="Technical manual..." value={desc} onChange={e => setDesc(e.target.value)} />
+                <textarea className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-all h-24 resize-none placeholder:text-zinc-800" placeholder="Technical specifications..." value={desc} onChange={e => setDesc(e.target.value)} />
               </div>
               <div className="space-y-1">
                 <label className="text-[9px] font-bold uppercase text-zinc-600 tracking-wider ml-1">Binary (.rbxm/.rbxl)</label>
