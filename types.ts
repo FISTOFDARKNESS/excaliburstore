@@ -26,9 +26,10 @@ export interface User {
   avatar: string;
   joinedAt: number;
   isVerified: boolean;
-  isBanned?: boolean; // Novo campo para moderação
-  followers: string[]; // IDs de quem segue este usuário
-  following: string[]; // IDs de quem este usuário segue
+  isBanned?: boolean;
+  isAdmin: boolean; // Campo persistido para privilégios administrativos
+  followers: string[];
+  following: string[];
 }
 
 export interface Asset {
@@ -36,7 +37,7 @@ export interface Asset {
   userId: string;
   authorName: string;
   authorAvatar: string;
-  authorVerified?: boolean; // Cache da verificação no momento do upload
+  authorVerified?: boolean;
   title: string;
   originalFileName: string;
   description: string;

@@ -129,7 +129,8 @@ export default function App() {
   const [isSavingName, setIsSavingName] = useState(false);
   const [nameError, setNameError] = useState('');
 
-  const isAdmin = (user: User | null) => user ? ADMIN_EMAILS.includes(user.email) : false;
+  // Helper aprimorado para checar isAdmin
+  const isAdmin = (user: User | null) => user ? (user.isAdmin || ADMIN_EMAILS.includes(user.email)) : false;
 
   // Atalho Ctrl+B para Admin
   useEffect(() => {
@@ -613,7 +614,7 @@ export default function App() {
                                                 </div>
                                             </td>
                                             <td className="p-6 text-zinc-400">
-                                                {ADMIN_EMAILS.includes(u.email) ? <span className="text-red-500 font-black">ROOT ADMIN</span> : "STANDARD AGENT"}
+                                                {ADMIN_EMAILS.includes(u.email) || u.isAdmin ? <span className="text-red-500 font-black">ROOT ADMIN</span> : "STANDARD AGENT"}
                                             </td>
                                             <td className="p-6">
                                                 <div className="flex gap-4">

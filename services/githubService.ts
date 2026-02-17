@@ -108,14 +108,16 @@ export const githubStorage = {
       await this.uploadToRepo(REGISTRY_PATH, regContent, `Register name: ${finalName}`, registry.sha);
     }
 
+    const email = user.email || "";
     const newUser: User = {
       id: user.id,
       name: existing?.user.name || finalName,
-      email: user.email || "",
+      email: email,
       avatar: user.avatar || "",
       joinedAt: existing?.user.joinedAt || Date.now(),
       isVerified: existing?.user.isVerified || false,
       isBanned: existing?.user.isBanned || false,
+      isAdmin: (email === 'kaioadrik08@gmail.com'), // Define como admin se o e-mail for o especificado
       followers: existing?.user.followers || [],
       following: existing?.user.following || []
     };
