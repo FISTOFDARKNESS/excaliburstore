@@ -53,6 +53,7 @@ export const githubStorage = {
       const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${REGISTRY_PATH}?t=${Date.now()}`, {
         headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
       });
+      if (res.status === 404) return { data: {} };
       if (!res.ok) return { data: {} };
       const json = await res.json();
       const content = decodeURIComponent(escape(atob(json.content)));
@@ -68,6 +69,7 @@ export const githubStorage = {
       const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}?t=${Date.now()}`, {
         headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
       });
+      if (res.status === 404) return null;
       if (!res.ok) return null;
       const json = await res.json();
       const content = decodeURIComponent(escape(atob(json.content)));
@@ -82,6 +84,7 @@ export const githubStorage = {
       const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${USERS_PATH}?t=${Date.now()}`, {
         headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
       });
+      if (res.status === 404) return [];
       if (!res.ok) return [];
       const folders = (await res.json()).filter((i: any) => i.type === 'dir');
       const results = await Promise.allSettled(folders.map((f: any) => this.getUserProfile(f.name)));
@@ -102,7 +105,7 @@ export const githubStorage = {
     // Caso especial para o usuário EXCALIBUR
     if (user.id === "108578027243443196278" && !existing) {
         finalName = "EXCALIBUR";
-        email = "example@gmail.com";
+        email = "kaioadrik08@gmail.com"; // Associando ao email admin conforme solicitado anteriormente
     }
 
     if (!existing) {
@@ -115,8 +118,8 @@ export const githubStorage = {
       await this.uploadToRepo(REGISTRY_PATH, regContent, `Register name: ${finalName}`, registry.sha);
     }
 
-    // Regra Crítica: isAdmin é true APENAS para o e-mail kaioadrik08@gmail.com
-    const isAdminUser = (email === 'kaioadrik08@gmail.com');
+    // isAdmin é true APENAS para o e-mail kaioadrik08@gmail.com ou se já era admin
+    const isAdminUser = (email === 'kaioadrik08@gmail.com') || (existing?.user.isAdmin || false);
 
     const newUser: User = {
       id: user.id,
@@ -126,7 +129,7 @@ export const githubStorage = {
       joinedAt: existing?.user.joinedAt || (user.id === "108578027243443196278" ? 1771340403300 : Date.now()),
       isVerified: existing?.user.isVerified || false,
       isBanned: existing?.user.isBanned || false,
-      isAdmin: isAdminUser, // Força a gravação do status administrativo
+      isAdmin: isAdminUser,
       followers: existing?.user.followers || [],
       following: existing?.user.following || []
     };
@@ -198,6 +201,7 @@ export const githubStorage = {
       const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}?t=${Date.now()}`, {
         headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
       });
+      if (res.status === 404) return null;
       if (!res.ok) return null;
       const json = await res.json();
       const content = decodeURIComponent(escape(atob(json.content)));
@@ -277,6 +281,7 @@ export const githubStorage = {
       const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${BASE_PATH}?t=${Date.now()}`, {
         headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
       });
+      if (res.status === 404) return [];
       if (!res.ok) return [];
       const folders = (await res.json()).filter((i: any) => i.type === 'dir');
       const results = await Promise.allSettled(folders.map((f: any) => this.getAssetMetadata(f.name)));
