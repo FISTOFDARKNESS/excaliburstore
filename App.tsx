@@ -103,6 +103,7 @@ const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () 
 };
 
 type TabId = 'explore' | 'verified' | 'market' | 'profile' | 'admin';
+type AdminSubTab = 'all' | 'verified' | 'banned' | 'reports';
 
 export default function App() {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -110,7 +111,9 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [adminSearch, setAdminSearch] = useState('');
   const [activeTab, setActiveTab] = useState<TabId>('explore');
+  const [adminSubTab, setAdminSubTab] = useState<AdminSubTab>('all');
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [viewedUser, setViewedUser] = useState<User | null>(null);
   const [showUpload, setShowUpload] = useState(false);
@@ -151,7 +154,7 @@ export default function App() {
           const fresh = await githubStorage.getUserProfile(u.id);
           if (fresh) {
             if (fresh.user.isBanned) {
-                alert("CONTA BLOQUEADA POR VIOLAÇÃO DE TERMOS.");
+                alert("ACESSO NEGADO: Sua conta foi suspensa por violação das diretrizes.");
                 localStorage.removeItem('ex_session_v2');
                 window.location.reload();
             } else {
@@ -202,7 +205,7 @@ export default function App() {
               avatar: payload.picture
             });
             if (user.isBanned) {
-                alert("CONTA SUSPENSA.");
+                alert("ACESSO NEGADO.");
                 return;
             }
             setCurrentUser(user);
@@ -259,20 +262,20 @@ export default function App() {
     try {
       if (action === 'ban') {
         const u = await githubStorage.toggleBan(userId);
-        alert(u.isBanned ? "Usuário Banido!" : "Usuário Reintegrado.");
+        alert(u.isBanned ? "Agente Terminado (Banido)." : "Agente Reintegrado.");
       } else if (action === 'verify' || action === 'unverify') {
         await githubStorage.verifyUser(userId, action === 'verify');
-        alert("Status de Verificação Atualizado.");
+        alert("Protocolo de Verificação Atualizado.");
       } else if (action === 'edit_name') {
-        const name = prompt("Novo nome para o agente:");
+        const name = prompt("Defina o novo nome universal para este agente:");
         if (name && name.trim()) {
             await githubStorage.changeUsername(userId, name.trim());
-            alert("Nome Alterado Universalmente.");
+            alert("Sincronização de Nome Completa.");
         }
       }
       await fetchUsers();
     } catch (e: any) {
-      alert("ERRO: " + e.message);
+      alert("FALHA CRÍTICA: " + e.message);
     } finally {
       setLoading(false);
     }
@@ -318,7 +321,7 @@ export default function App() {
   };
 
   const handleDelete = async (assetId: string) => {
-    if (!confirm("TEM CERTEZA? Esta ação removerá permanentemente os arquivos do servidor.")) return;
+    if (!confirm("CONFIRMAR ELIMINAÇÃO: Esta ação removerá permanentemente os arquivos do servidor.")) return;
     setLoading(true);
     try {
       await githubStorage.removeAsset(assetId);
@@ -424,6 +427,20 @@ export default function App() {
     ) : list;
   }, [assets, searchQuery, activeTab, currentUser]);
 
+  const filteredAdminUsers = useMemo(() => {
+    let list = allUsers;
+    if (adminSubTab === 'verified') list = list.filter(u => u.isVerified);
+    else if (adminSubTab === 'banned') list = list.filter(u => u.isBanned);
+    
+    const q = adminSearch.toLowerCase();
+    if (q) {
+        list = list.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.id.toLowerCase().includes(q));
+    }
+    return list;
+  }, [allUsers, adminSubTab, adminSearch]);
+
+  const reportedAssets = useMemo(() => assets.filter(a => a.reports > 0).sort((a,b) => b.reports - a.reports), [assets]);
+
   const userAssets = useMemo(() => viewedUser ? assets.filter(a => a.userId === viewedUser.id) : [], [assets, viewedUser]);
 
   if (loading) return <div className="h-screen w-full flex items-center justify-center bg-black text-[10px] font-black uppercase tracking-[1em] animate-pulse">EXCALIBUR OS // PROCESSING</div>;
@@ -448,7 +465,7 @@ export default function App() {
           {isAdmin(currentUser) && (
             <button onClick={() => setActiveTab('admin')} className={`flex items-center gap-3 p-3.5 rounded-xl font-bold text-[9px] uppercase tracking-widest transition-all mt-4 ${activeTab === 'admin' ? 'bg-red-600 text-white' : 'text-red-500 hover:bg-red-500/10'}`}>
                <Icons.Report />
-               <span>CONSOLE</span>
+               <span>ADMIN PANEL</span>
             </button>
           )}
         </nav>
@@ -483,62 +500,109 @@ export default function App() {
       <main className="flex-grow lg:ml-64 p-6 lg:p-12">
         {activeTab === 'admin' ? (
             <div className="animate-in fade-in duration-500">
-                <header className="mb-14">
-                    <h2 className="text-5xl font-black italic uppercase tracking-tighter leading-none text-red-600">Admin Console</h2>
-                    <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.4em] mt-2">Universal Asset Control & Mod Protocol</p>
+                <header className="mb-14 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                    <div>
+                        <h2 className="text-5xl font-black italic uppercase tracking-tighter leading-none text-red-600">Command Center</h2>
+                        <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.4em] mt-2">Protocolos de Gestão Universal</p>
+                    </div>
+                    <div className="flex gap-2">
+                        {(['all', 'verified', 'banned', 'reports'] as AdminSubTab[]).map(tab => (
+                            <button 
+                                key={tab} 
+                                onClick={() => setAdminSubTab(tab)} 
+                                className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${adminSubTab === tab ? 'bg-red-600 text-white' : 'bg-white/5 text-zinc-500'}`}
+                            >
+                                {tab}
+                            </button>
+                        ))}
+                    </div>
                 </header>
                 
-                <div className="bg-zinc-900/50 border border-white/5 rounded-[2.5rem] overflow-hidden">
-                    <table className="w-full text-[9px] font-black uppercase tracking-widest">
-                        <thead className="bg-white/5 border-b border-white/5 text-zinc-500">
-                            <tr>
-                                <th className="p-6 text-left">Agent</th>
-                                <th className="p-6 text-left">Email</th>
-                                <th className="p-6 text-left">Stats</th>
-                                <th className="p-6 text-left">Status</th>
-                                <th className="p-6 text-right">Directives</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                            {allUsers.map(u => (
-                                <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
-                                    <td className="p-6">
-                                        <div className="flex items-center gap-3">
-                                            <img src={u.avatar} className="w-8 h-8 rounded-lg" referrerPolicy="no-referrer" />
-                                            <div>
-                                                <p className="flex items-center gap-1.5 text-[11px] italic">
-                                                    {u.name} {u.isVerified && <Icons.Verified className="w-3 h-3 text-blue-500" />}
-                                                </p>
-                                                <p className="text-[7px] text-zinc-600">UID: {u.id.slice(-6)}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="p-6 text-zinc-400">{u.email}</td>
-                                    <td className="p-6">
-                                        <div className="flex gap-4">
-                                            <span>FLW: {u.followers.length}</span>
-                                            <span>ING: {u.following.length}</span>
-                                        </div>
-                                    </td>
-                                    <td className="p-6">
-                                        <div className="flex gap-2">
-                                            {u.isBanned && <span className="bg-red-600/20 text-red-500 px-2 py-0.5 rounded border border-red-500/30">BANNED</span>}
-                                            {u.isVerified && <span className="bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded border border-blue-500/30">VERIFIED</span>}
-                                            {!u.isBanned && !u.isVerified && <span className="text-zinc-700">NEUTRAL</span>}
-                                        </div>
-                                    </td>
-                                    <td className="p-6 text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <button onClick={() => handleAdminUserAction(u.id, 'edit_name')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400">EDIT</button>
-                                            <button onClick={() => handleAdminUserAction(u.id, u.isVerified ? 'unverify' : 'verify')} className={`p-2 rounded-lg ${u.isVerified ? 'bg-zinc-800 text-zinc-400' : 'bg-blue-600 text-white'}`}>{u.isVerified ? 'REVOKE' : 'VERIFY'}</button>
-                                            <button onClick={() => handleAdminUserAction(u.id, 'ban')} className={`p-2 rounded-lg font-black ${u.isBanned ? 'bg-white text-black' : 'bg-red-600 text-white'}`}>{u.isBanned ? 'UNBAN' : 'TERMINATE'}</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                {adminSubTab === 'reports' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {reportedAssets.map(asset => (
+                            <div key={asset.id} className="bg-zinc-900 border border-red-500/20 rounded-2xl overflow-hidden p-6 relative">
+                                <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-[10px] font-black">{asset.reports} REPORTS</div>
+                                <h3 className="text-lg font-black uppercase italic mb-2">{asset.title}</h3>
+                                <p className="text-[9px] text-zinc-500 uppercase mb-4">By: {asset.authorName} (ID: {asset.id})</p>
+                                <div className="flex gap-2 mt-auto">
+                                    <button onClick={() => setSelectedAsset(asset)} className="flex-grow bg-white/5 py-2 rounded-lg text-[9px] font-black uppercase">Inspect</button>
+                                    <button onClick={() => handleDelete(asset.id)} className="flex-grow bg-red-600 py-2 rounded-lg text-[9px] font-black uppercase text-white">Purge Asset</button>
+                                </div>
+                            </div>
+                        ))}
+                        {reportedAssets.length === 0 && <p className="col-span-full text-center py-20 text-zinc-600 font-black uppercase tracking-widest">Nenhuma anomalia detectada.</p>}
+                    </div>
+                ) : (
+                    <>
+                        <div className="mb-8">
+                            <input 
+                                value={adminSearch} 
+                                onChange={e => setAdminSearch(e.target.value)} 
+                                placeholder="LOCALIZAR AGENTE POR NOME, ID OU EMAIL..." 
+                                className="w-full bg-zinc-900 border border-white/5 rounded-xl py-4 px-6 text-[10px] font-black uppercase outline-none focus:border-red-600/50 transition-all"
+                            />
+                        </div>
+                        <div className="bg-zinc-900/50 border border-white/5 rounded-[2.5rem] overflow-hidden">
+                            <table className="w-full text-[9px] font-black uppercase tracking-widest">
+                                <thead className="bg-white/5 border-b border-white/5 text-zinc-500">
+                                    <tr>
+                                        <th className="p-6 text-left">Agent Entity</th>
+                                        <th className="p-6 text-left">Security Clearance</th>
+                                        <th className="p-6 text-left">Stats</th>
+                                        <th className="p-6 text-left">Protocol Status</th>
+                                        <th className="p-6 text-right">Admin Directives</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {filteredAdminUsers.map(u => (
+                                        <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
+                                            <td className="p-6">
+                                                <div className="flex items-center gap-3">
+                                                    <img src={u.avatar} className={`w-8 h-8 rounded-lg ${u.isBanned ? 'grayscale opacity-30' : ''}`} referrerPolicy="no-referrer" />
+                                                    <div>
+                                                        <p className={`flex items-center gap-1.5 text-[11px] italic ${u.isBanned ? 'line-through text-zinc-700' : ''}`}>
+                                                            {u.name} {u.isVerified && <Icons.Verified className="w-3 h-3 text-blue-500" />}
+                                                        </p>
+                                                        <p className="text-[7px] text-zinc-600">{u.email}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="p-6 text-zinc-400">
+                                                {ADMIN_EMAILS.includes(u.email) ? <span className="text-red-500 font-black">ROOT ADMIN</span> : "STANDARD AGENT"}
+                                            </td>
+                                            <td className="p-6">
+                                                <div className="flex gap-4">
+                                                    <span>FLW: {u.followers.length}</span>
+                                                    <span>ING: {u.following.length}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-6">
+                                                <div className="flex gap-2">
+                                                    {u.isBanned && <span className="bg-red-600 text-white px-2 py-0.5 rounded border border-red-500/30 text-[7px]">TERMINATED</span>}
+                                                    {u.isVerified && <span className="bg-blue-600 text-white px-2 py-0.5 rounded border border-blue-500/30 text-[7px]">VERIFIED</span>}
+                                                    {!u.isBanned && !u.isVerified && <span className="text-zinc-700">ACTIVE</span>}
+                                                </div>
+                                            </td>
+                                            <td className="p-6 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => handleAdminUserAction(u.id, 'edit_name')} className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400">EDIT NAME</button>
+                                                    <button onClick={() => handleAdminUserAction(u.id, u.isVerified ? 'unverify' : 'verify')} className={`px-3 py-1.5 rounded-lg ${u.isVerified ? 'bg-zinc-800 text-zinc-400' : 'bg-blue-600 text-white'}`}>{u.isVerified ? 'REVOKE' : 'VERIFY'}</button>
+                                                    <button onClick={() => handleAdminUserAction(u.id, 'ban')} className={`px-3 py-1.5 rounded-lg font-black ${u.isBanned ? 'bg-white text-black' : 'bg-red-600 text-white'}`}>{u.isBanned ? 'RESTORE' : 'TERMINATE'}</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {filteredAdminUsers.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="p-20 text-center text-zinc-700 italic">Nenhum registro encontrado no filtro atual.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
+                )}
             </div>
         ) : (
             <>
@@ -625,7 +689,7 @@ export default function App() {
                       )}
                       <div className="flex gap-2">
                         {viewedUser.isBanned && (
-                            <span className="w-fit bg-red-600/10 text-red-500 border border-red-500/20 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">
+                            <span className="w-fit bg-red-600 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">
                                ACCOUNT TERMINATED
                             </span>
                         )}
@@ -656,7 +720,7 @@ export default function App() {
                         {viewedUser.isVerified ? 'Remove Verified' : 'Grant Verified'}
                         </button>
                         <button onClick={() => handleAdminUserAction(viewedUser.id, 'ban')} className={`px-8 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg active:scale-95 ${viewedUser.isBanned ? 'bg-white text-black' : 'bg-red-600 text-white'}`}>
-                        {viewedUser.isBanned ? 'Unban User' : 'Ban User'}
+                        {viewedUser.isBanned ? 'Restore Access' : 'Ban Agent'}
                         </button>
                     </div>
                   )}
@@ -791,7 +855,7 @@ export default function App() {
                   </div>
                   {(isAdmin(currentUser) || (currentUser && currentUser.id === selectedAsset.userId)) && (
                     <button onClick={() => handleDelete(selectedAsset.id)} className="w-full py-4 rounded-2xl border border-red-600 text-red-500 font-black uppercase text-[9px] hover:bg-red-600 hover:text-white transition-all shadow-lg mt-4">
-                      ELIMINAR ASSET (PROPRIETÁRIO/ADMIN)
+                      ELIMINAR ASSET (ROOT/AUTHOR)
                     </button>
                   )}
                 </div>
