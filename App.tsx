@@ -44,7 +44,7 @@ const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () 
       <div className="h-[200px] w-full relative overflow-hidden bg-zinc-900 flex items-center justify-center">
         {asset.reports > 0 && (
           <div className="absolute top-4 right-4 bg-red-600/80 backdrop-blur-md p-1.5 rounded-lg border border-red-500/50 text-white z-20 shadow-lg animate-pulse flex items-center gap-1.5 px-2">
-            <Icons.Report /> <span className="text-[8px] font-black uppercase">{asset.reports}</span>
+            <Icons.Report className="w-3 h-3" /> <span className="text-[8px] font-black uppercase">{asset.reports}</span>
           </div>
         )}
         
@@ -54,7 +54,7 @@ const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () 
            </div>
            {asset.authorVerified && (
              <div className="bg-blue-500/20 backdrop-blur-md p-1.5 rounded-lg border border-blue-500/30">
-               <Icons.Verified />
+               <Icons.Verified className="w-4 h-4 text-blue-500" />
              </div>
            )}
         </div>
@@ -83,18 +83,18 @@ const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () 
         <div>
           <h3 className="text-xl font-black uppercase italic truncate mb-1 flex items-center gap-2">
             {asset.title}
-            {asset.authorVerified && <Icons.Verified />}
+            {asset.authorVerified && <Icons.Verified className="w-5 h-5" />}
           </h3>
           <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
             Provider: {asset.authorName}
-            {asset.authorVerified && <Icons.Verified className="!w-3 !h-3" />}
+            {asset.authorVerified && <Icons.Verified className="w-3 h-3" />}
           </p>
         </div>
         <div className="flex justify-between items-center text-[8px] font-black text-zinc-400 uppercase tracking-widest pt-4 border-t border-white/5 mt-2">
           <span className="bg-white/5 px-3 py-1 rounded-md border border-white/5">{asset.category}</span>
           <div className="flex gap-4 items-center">
-            <span className="flex items-center gap-1.5"><Icons.Like filled={asset.likes?.includes(currentUser?.id || '')} /> {asset.likes?.length || 0}</span>
-            <span className="flex items-center gap-1.5"><Icons.Download /> {asset.downloadCount || 0}</span>
+            <span className="flex items-center gap-1.5"><Icons.Like filled={asset.likes?.includes(currentUser?.id || '')} className="w-4 h-4" /> {asset.likes?.length || 0}</span>
+            <span className="flex items-center gap-1.5"><Icons.Download className="w-4 h-4" /> {asset.downloadCount || 0}</span>
           </div>
         </div>
       </div>
@@ -448,44 +448,48 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#050505] text-white flex flex-col lg:flex-row">
       {/* Sidebar Navigation */}
-      <aside className="w-full lg:w-64 border-r border-white/5 flex flex-col p-6 lg:fixed h-auto lg:h-full z-50 bg-[#050505]">
+      <aside className="w-full lg:w-64 border-r border-white/5 flex flex-col p-6 lg:fixed h-auto lg:h-full z-50 bg-[#050505] shrink-0">
         <div className="flex items-center gap-3 mb-12">
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center rotate-3"><Icons.Model /></div>
+          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center rotate-3"><Icons.Model className="w-5 h-5 text-black" /></div>
           <h1 className="font-black italic text-lg tracking-tighter">EXCALIBUR</h1>
         </div>
-        <nav className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-4 lg:pb-0">
-          <button onClick={() => setActiveTab('explore')} className={`flex items-center gap-3 p-3.5 rounded-xl font-bold text-[9px] uppercase tracking-widest transition-all ${activeTab === 'explore' ? 'bg-white text-black' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}>
-             <Icons.Search />
+        <nav className="flex flex-col gap-1.5 pb-4">
+          <button onClick={() => setActiveTab('explore')} className={`flex items-center gap-4 p-4 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all ${activeTab === 'explore' ? 'bg-white text-black' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}>
+             <Icons.Search className="w-5 h-5" />
              <span>EXPLORE</span>
           </button>
-          <button onClick={() => setActiveTab('verified')} className={`flex items-center gap-3 p-3.5 rounded-xl font-bold text-[9px] uppercase tracking-widest transition-all ${activeTab === 'verified' ? 'bg-blue-600 text-white' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}>
-             <Icons.Verified className={activeTab === 'verified' ? 'text-white' : 'text-blue-500'} />
+          
+          <button onClick={() => setActiveTab('verified')} className={`flex items-center gap-4 p-4 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all ${activeTab === 'verified' ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}>
+             <Icons.Verified className={`w-5 h-5 ${activeTab === 'verified' ? 'text-white' : 'text-blue-500'}`} />
              <span>VERIFIED</span>
           </button>
-          <button onClick={() => setActiveTab('market')} className={`flex items-center gap-3 p-3.5 rounded-xl font-bold text-[9px] uppercase tracking-widest transition-all ${activeTab === 'market' ? 'bg-white text-black' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}>
-             <Icons.Script />
+          
+          <button onClick={() => setActiveTab('market')} className={`flex items-center gap-4 p-4 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all ${activeTab === 'market' ? 'bg-white text-black' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}>
+             <Icons.Script className="w-5 h-5" />
              <span>MARKET</span>
           </button>
-          <button onClick={() => setActiveTab('profile')} className={`flex items-center gap-3 p-3.5 rounded-xl font-bold text-[9px] uppercase tracking-widest transition-all ${activeTab === 'profile' ? 'bg-white text-black' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}>
-             <Icons.Plus />
+          
+          <button onClick={() => setActiveTab('profile')} className={`flex items-center gap-4 p-4 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all ${activeTab === 'profile' ? 'bg-white text-black' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}>
+             <Icons.Plus className="w-5 h-5" />
              <span>PROFILE</span>
           </button>
 
           {isAdmin(currentUser) && (
-            <button onClick={() => setActiveTab('admin')} className={`flex items-center gap-3 p-3.5 rounded-xl font-bold text-[9px] uppercase tracking-widest transition-all mt-4 ${activeTab === 'admin' ? 'bg-red-600 text-white' : 'text-red-500 hover:bg-red-500/10'}`}>
-               <Icons.Report />
+            <button onClick={() => setActiveTab('admin')} className={`flex items-center gap-4 p-4 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all mt-6 ${activeTab === 'admin' ? 'bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.3)]' : 'text-red-500 hover:bg-red-500/10'}`}>
+               <Icons.Report className="w-5 h-5" />
                <span>ADMIN PANEL</span>
             </button>
           )}
         </nav>
+        
         <div className="mt-auto pt-6 border-t border-white/5">
           {currentUser ? (
             <div className="relative group">
               <div className="p-3.5 bg-white/5 rounded-xl border border-white/5 flex items-center gap-3 cursor-pointer group-hover:opacity-20 transition-all" onClick={() => openUserProfile(currentUser.id)}>
-                <img src={currentUser.avatar} className="w-7 h-7 rounded-lg grayscale group-hover:grayscale-0 transition-all" referrerPolicy="no-referrer" />
+                <img src={currentUser.avatar} className="w-8 h-8 rounded-lg grayscale group-hover:grayscale-0 transition-all" referrerPolicy="no-referrer" />
                 <div className="flex-grow min-w-0">
-                  <p className="text-[9px] font-black truncate flex items-center gap-1">
-                    {currentUser.name} {currentUser.isVerified && <Icons.Verified className="!w-3 !h-3 text-blue-400" />}
+                  <p className="text-[10px] font-black truncate flex items-center gap-1.5">
+                    {currentUser.name} {currentUser.isVerified && <Icons.Verified className="w-3 h-3 text-blue-400" />}
                   </p>
                   <p className="text-[7px] text-zinc-500 font-bold uppercase">{currentUser.followers.length} Followers</p>
                 </div>
@@ -499,14 +503,14 @@ export default function App() {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-4">
-              <p className="text-[7px] font-black text-zinc-600 uppercase tracking-widest text-center">Protocolo de Login Seguro</p>
+              <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest text-center">Protocolo de Login Seguro</p>
               <div id="google-login-btn" className="w-full flex justify-center"></div>
             </div>
           )}
         </div>
       </aside>
 
-      <main className="flex-grow lg:ml-64 p-6 lg:p-12">
+      <main className="flex-grow lg:ml-64 p-6 lg:p-12 min-h-screen">
         {activeTab === 'admin' ? (
             <div className="animate-in fade-in duration-500">
                 <header className="mb-14 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
@@ -557,10 +561,10 @@ export default function App() {
                                 <thead className="bg-white/5 border-b border-white/5 text-zinc-500">
                                     <tr>
                                         <th className="p-6 text-left">Agent Entity</th>
-                                        <th className="p-6 text-left">Security Clearance</th>
+                                        <th className="p-6 text-left">Clearance</th>
                                         <th className="p-6 text-left">Stats</th>
                                         <th className="p-6 text-left">Protocol Status</th>
-                                        <th className="p-6 text-right">Admin Directives</th>
+                                        <th className="p-6 text-right">Directives</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
@@ -571,7 +575,7 @@ export default function App() {
                                                     <img src={u.avatar} className={`w-8 h-8 rounded-lg ${u.isBanned ? 'grayscale opacity-30' : ''}`} referrerPolicy="no-referrer" />
                                                     <div>
                                                         <p className={`flex items-center gap-1.5 text-[11px] italic ${u.isBanned ? 'line-through text-zinc-700' : ''}`}>
-                                                            {u.name} {u.isVerified && <Icons.Verified className="!w-3 !h-3 text-blue-500" />}
+                                                            {u.name} {u.isVerified && <Icons.Verified className="w-3 h-3 text-blue-500" />}
                                                         </p>
                                                         <p className="text-[7px] text-zinc-600">{u.email}</p>
                                                     </div>
@@ -602,11 +606,6 @@ export default function App() {
                                             </td>
                                         </tr>
                                     ))}
-                                    {filteredAdminUsers.length === 0 && (
-                                        <tr>
-                                            <td colSpan={5} className="p-20 text-center text-zinc-700 italic">Nenhum registro encontrado no filtro atual.</td>
-                                        </tr>
-                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -614,135 +613,133 @@ export default function App() {
                 )}
             </div>
         ) : (
-            <>
+            <div className="animate-in fade-in duration-700">
                 <header className="mb-14 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative">
                     {activeTab === 'verified' && (
                         <div className="absolute -top-12 -left-12 w-96 h-96 bg-blue-600/10 blur-[150px] pointer-events-none rounded-full" />
                     )}
                     <div>
-                        <h2 className={`text-5xl font-black italic uppercase tracking-tighter leading-none flex items-center gap-3 ${activeTab === 'verified' ? 'text-blue-500' : ''}`}>
+                        <h2 className={`text-6xl font-black italic uppercase tracking-tighter leading-none flex items-center gap-4 ${activeTab === 'verified' ? 'text-blue-500' : 'text-white'}`}>
                           {activeTab}
-                          {activeTab === 'verified' && <Icons.Verified className="w-10 h-10 text-blue-500" />}
+                          {activeTab === 'verified' && <Icons.Verified className="w-12 h-12 text-blue-500" />}
                         </h2>
-                        <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.4em] mt-2">
-                          {activeTab === 'verified' ? 'PREMIUM AGENT REPOSITORY' : 'Unique Roblox Repository'}
+                        <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.5em] mt-3">
+                          {activeTab === 'verified' ? 'PREMIUM AGENT REPOSITORY' : 'DECENTRALIZED ROBLOX HUB'}
                         </p>
                     </div>
                     <div className="flex items-center gap-3 w-full md:w-auto">
-                        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="PROTOCOL SEARCH..." className="w-full md:w-64 bg-zinc-900 border border-white/5 rounded-xl py-4 px-6 text-[10px] font-black uppercase outline-none focus:border-white/20 transition-all" />
+                        <div className="relative w-full md:w-80">
+                          <Icons.Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="PROTOCOL SEARCH..." className="w-full bg-zinc-900 border border-white/5 rounded-2xl py-5 pl-14 pr-6 text-[11px] font-black uppercase outline-none focus:border-white/20 transition-all placeholder:text-zinc-700" />
+                        </div>
                     </div>
                 </header>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
                     {filteredAssets.map(asset => <AssetCard key={asset.id} asset={asset} currentUser={currentUser} onClick={() => setSelectedAsset(asset)} />)}
                     {filteredAssets.length === 0 && (
-                        <div className="col-span-full py-24 text-center opacity-40">
-                          <p className="text-zinc-600 font-black uppercase tracking-[0.5em] text-[10px]">
-                            {activeTab === 'verified' ? 'AGUARDANDO TRANSMISSÃO DE AGENTES VERIFICADOS' : 'NENHUM REGISTRO NO SETOR.'}
+                        <div className="col-span-full py-40 text-center">
+                          <div className="w-20 h-20 bg-zinc-900 rounded-3xl mx-auto mb-8 flex items-center justify-center opacity-20">
+                            <Icons.Model className="w-10 h-10" />
+                          </div>
+                          <p className="text-zinc-700 font-black uppercase tracking-[0.6em] text-[11px]">
+                            {activeTab === 'verified' ? 'AGUARDANDO TRANSMISSÃO DE AGENTES VERIFICADOS' : 'NENHUM REGISTRO NO SETOR ATUAL.'}
                           </p>
                         </div>
                     )}
                 </div>
-            </>
+            </div>
         )}
 
         {currentUser && !currentUser.isBanned && (
-          <button onClick={() => setShowUpload(true)} className="fixed bottom-10 right-10 bg-white text-black w-16 h-16 rounded-2xl shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-40 border-[6px] border-black">
-            <Icons.Plus />
+          <button onClick={() => setShowUpload(true)} className="fixed bottom-10 right-10 bg-white text-black w-16 h-16 rounded-2xl shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-40 border-[6px] border-black">
+            <Icons.Plus className="w-6 h-6" />
           </button>
         )}
       </main>
 
-      {/* Outros Modais permanecem iguais... */}
       {/* Profile Modal */}
       {viewedUser && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/95 backdrop-blur-xl" onClick={() => setViewedUser(null)} />
-          <div className="relative w-full max-w-4xl bg-[#080808] border border-white/10 rounded-[2.5rem] overflow-hidden flex flex-col max-h-[90vh] shadow-2xl">
+          <div className="relative w-full max-w-4xl bg-[#080808] border border-white/10 rounded-[2.5rem] overflow-hidden flex flex-col max-h-[90vh] shadow-2xl animate-in zoom-in-95 duration-300">
              <div className="p-10 border-b border-white/5 flex flex-col md:flex-row items-center gap-8 bg-gradient-to-r from-blue-900/10 via-transparent to-transparent">
                 <img src={viewedUser.avatar} className={`w-32 h-32 rounded-3xl border border-white/10 shadow-2xl grayscale hover:grayscale-0 transition-all ${viewedUser.isBanned ? 'border-red-600 shadow-red-900/50' : ''}`} referrerPolicy="no-referrer" />
                 <div className="flex-grow">
                    <div className="flex flex-col gap-2 mb-2">
-                      {isEditingName && currentUser?.id === viewedUser.id ? (
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            <input 
-                              autoFocus
-                              value={newName}
-                              onChange={e => { setNewName(e.target.value); setNameError(''); }}
-                              className="bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-2xl font-black italic uppercase outline-none focus:border-white/30"
-                              placeholder="NOVO NOME..."
-                            />
-                            <button 
-                              onClick={handleSaveName}
-                              disabled={isSavingName}
-                              className="bg-white text-black px-6 py-3 rounded-xl font-black text-[10px] uppercase hover:bg-zinc-200 transition-all"
-                            >
-                              {isSavingName ? 'Verificando...' : 'Salvar'}
-                            </button>
-                            <button 
-                              onClick={() => setIsEditingName(false)}
-                              className="px-4 py-3 rounded-xl border border-white/10 text-zinc-500 font-black text-[10px] uppercase"
-                            >
-                              X
-                            </button>
-                          </div>
-                          {nameError && <p className="text-red-500 text-[9px] font-black uppercase tracking-widest">{nameError}</p>}
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-4">
-                          <h2 className={`text-4xl font-black italic uppercase tracking-tighter leading-none flex items-center gap-2 ${viewedUser.isBanned ? 'text-red-600' : ''}`}>
-                            {viewedUser.name}
-                            {viewedUser.isVerified && <Icons.Verified className="!w-8 !h-8 text-blue-500" />}
-                          </h2>
-                          {currentUser?.id === viewedUser.id && (
-                            <button onClick={() => setIsEditingName(true)} className="text-zinc-600 hover:text-white transition-colors">
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-4">
+                        <h2 className={`text-4xl font-black italic uppercase tracking-tighter leading-none flex items-center gap-2 ${viewedUser.isBanned ? 'text-red-600' : ''}`}>
+                          {viewedUser.name}
+                          {viewedUser.isVerified && <Icons.Verified className="w-8 h-8 text-blue-500" />}
+                        </h2>
+                      </div>
                       <div className="flex gap-2">
-                        {viewedUser.isBanned && (
-                            <span className="w-fit bg-red-600 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">
-                               ACCOUNT TERMINATED
-                            </span>
-                        )}
-                        {viewedUser.isVerified ? (
-                            <span className="w-fit bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                            <Icons.Verified className="!w-3 !h-3" /> Verified Agent
-                            </span>
-                        ) : (
-                            <span className="w-fit bg-zinc-800/50 text-zinc-500 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Unverified Agent</span>
-                        )}
+                        {viewedUser.isBanned && <span className="bg-red-600 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">TERMINATED</span>}
+                        {viewedUser.isVerified && <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5"><Icons.Verified className="w-3 h-3" /> Verified Agent</span>}
                       </div>
                    </div>
-                   <div className="flex gap-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                      <span className="flex items-center gap-2"><div className="w-1 h-1 bg-white rounded-full"/> {viewedUser.followers.length} Seguidores</span>
-                      <span className="flex items-center gap-2"><div className="w-1 h-1 bg-white rounded-full"/> {viewedUser.following.length} Seguindo</span>
-                      <span className="flex items-center gap-2"><div className="w-1 h-1 bg-white rounded-full"/> {userAssets.length} Assets</span>
+                   <div className="flex gap-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 mt-4">
+                      <span>{viewedUser.followers.length} Seguidores</span>
+                      <span>{viewedUser.following.length} Seguindo</span>
+                      <span>{userAssets.length} Assets</span>
                    </div>
                 </div>
                 <div className="flex flex-col gap-3">
-                  {currentUser && currentUser.id !== viewedUser.id && (
-                    <button onClick={() => handleFollow(viewedUser.id)} className={`px-8 py-3 rounded-xl font-black text-[10px] uppercase transition-all shadow-lg active:scale-95 ${currentUser.following.includes(viewedUser.id) ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-white text-black'}`}>
-                      {currentUser.following.includes(viewedUser.id) ? 'Unfollow' : 'Follow'}
-                    </button>
-                  )}
                   {isAdmin(currentUser) && (
-                    <div className="flex flex-col gap-2">
-                        <button onClick={() => handleAdminUserAction(viewedUser.id, viewedUser.isVerified ? 'unverify' : 'verify')} className="px-8 py-2 rounded-xl bg-blue-600 text-white font-black text-[10px] uppercase shadow-lg active:scale-95">
-                        {viewedUser.isVerified ? 'Remove Verified' : 'Grant Verified'}
-                        </button>
-                        <button onClick={() => handleAdminUserAction(viewedUser.id, 'ban')} className={`px-8 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg active:scale-95 ${viewedUser.isBanned ? 'bg-white text-black' : 'bg-red-600 text-white'}`}>
-                        {viewedUser.isBanned ? 'Restore Access' : 'Ban Agent'}
-                        </button>
-                    </div>
+                    <button onClick={() => handleAdminUserAction(viewedUser.id, 'ban')} className={`px-8 py-3 rounded-xl font-black text-[10px] uppercase transition-all ${viewedUser.isBanned ? 'bg-white text-black' : 'bg-red-600 text-white'}`}>
+                      {viewedUser.isBanned ? 'Restore Access' : 'Ban Agent'}
+                    </button>
                   )}
                 </div>
              </div>
+             <div className="p-10 overflow-y-auto custom-scrollbar flex-grow">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600 mb-8 italic">Agent Repositories</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {userAssets.map(asset => (
+                    <div key={asset.id} onClick={() => { setSelectedAsset(asset); setViewedUser(null); }} className="p-4 bg-white/[0.03] border border-white/5 rounded-2xl flex items-center gap-4 cursor-pointer hover:bg-white/10 transition-all group">
+                       <img src={asset.thumbnailUrl} className="w-16 h-16 rounded-xl object-cover grayscale group-hover:grayscale-0 transition-all" />
+                       <div className="min-w-0">
+                          <p className="font-black uppercase text-[12px] truncate">{asset.title}</p>
+                          <p className="text-[9px] text-zinc-500 font-bold uppercase">{asset.category} • {asset.downloadCount} DL</p>
+                       </div>
+                    </div>
+                  ))}
+                </div>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Asset Detail View - Reduzido o ícone verificado */}
+      {selectedAsset && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/98 backdrop-blur-2xl" onClick={() => setSelectedAsset(null)} />
+          <div className="relative w-full max-w-5xl bg-[#080808] border border-white/10 rounded-[2.5rem] overflow-hidden flex flex-col lg:flex-row max-h-[85vh] shadow-2xl">
+            <div className="lg:w-3/5 p-10 overflow-y-auto custom-scrollbar border-r border-white/5">
+              <div className="aspect-video rounded-[1.5rem] overflow-hidden bg-black mb-10 border border-white/10 relative">
+                <video ref={detailVideoRef} src={`${selectedAsset.videoUrl}?t=${selectedAsset.timestamp}`} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+              </div>
+              <h2 className="text-4xl font-black italic uppercase leading-none tracking-tighter flex items-center gap-3">
+                {selectedAsset.title}
+                {selectedAsset.authorVerified && <Icons.Verified className="w-8 h-8 text-blue-500" />}
+              </h2>
+              <p className="text-zinc-400 mt-8 text-sm bg-white/[0.02] p-6 rounded-[1.5rem] italic leading-relaxed whitespace-pre-wrap">"{selectedAsset.description}"</p>
+            </div>
+            <div className="lg:w-2/5 p-10 flex flex-col justify-between bg-black/40">
+              <div className="space-y-8">
+                <div className="p-6 bg-white/[0.04] rounded-[2rem] border border-white/5 flex items-center gap-4 cursor-pointer hover:bg-white/10 transition-all group" onClick={() => openUserProfile(selectedAsset.userId)}>
+                  <img src={selectedAsset.authorAvatar} className="w-14 h-14 rounded-xl grayscale group-hover:grayscale-0 transition-all" referrerPolicy="no-referrer" />
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-black uppercase flex items-center gap-2 truncate">
+                      {selectedAsset.authorName}
+                      {selectedAsset.authorVerified && <Icons.Verified className="w-4 h-4 text-blue-500" />}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => handleDownload(selectedAsset)} className="w-full py-6 rounded-3xl bg-white text-black font-black uppercase text-[11px] shadow-2xl active:scale-95 flex items-center justify-center gap-3"><Icons.Download className="w-4 h-4" /> ADQUIRIR FILE</button>
+              </div>
+              <button onClick={() => setSelectedAsset(null)} className="w-full py-4 text-[9px] font-black uppercase text-zinc-700 hover:text-white transition-colors tracking-[0.4em] mt-8">VOLTAR AO SETOR</button>
+            </div>
           </div>
         </div>
       )}
