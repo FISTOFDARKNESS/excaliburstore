@@ -26,6 +26,7 @@ export interface User {
   avatar: string;
   joinedAt: number;
   isVerified: boolean;
+  isBanned?: boolean; // Novo campo para moderação
   followers: string[]; // IDs de quem segue este usuário
   following: string[]; // IDs de quem este usuário segue
 }

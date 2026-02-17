@@ -77,6 +77,20 @@ export const githubStorage = {
     }
   },
 
+  async getAllUsers(): Promise<User[]> {
+    try {
+      const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${USERS_PATH}?t=${Date.now()}`, {
+        headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+      });
+      if (!res.ok) return [];
+      const folders = (await res.json()).filter((i: any) => i.type === 'dir');
+      const results = await Promise.allSettled(folders.map((f: any) => this.getUserProfile(f.name)));
+      return results
+        .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value)
+        .map(r => r.value.user);
+    } catch { return []; }
+  },
+
   async syncUserProfile(user: Partial<User>): Promise<User> {
     if (!user.id) throw new Error("User ID required");
     const existing = await this.getUserProfile(user.id);
@@ -84,13 +98,11 @@ export const githubStorage = {
     
     let finalName = user.name || "Unknown User";
 
-    // Se é um novo usuário, verificar se o nome do Google já está em uso
     if (!existing) {
       const isTaken = Object.keys(registry.data).find(name => name.toLowerCase() === finalName.toLowerCase() && registry.data[name] !== user.id);
       if (isTaken) {
         finalName = `${finalName}#${Math.floor(1000 + Math.random() * 9000)}`;
       }
-      // Registrar no global
       registry.data[finalName] = user.id;
       const regContent = btoa(unescape(encodeURIComponent(JSON.stringify(registry.data, null, 2))));
       await this.uploadToRepo(REGISTRY_PATH, regContent, `Register name: ${finalName}`, registry.sha);
@@ -103,6 +115,7 @@ export const githubStorage = {
       avatar: user.avatar || "",
       joinedAt: existing?.user.joinedAt || Date.now(),
       isVerified: existing?.user.isVerified || false,
+      isBanned: existing?.user.isBanned || false,
       followers: existing?.user.followers || [],
       following: existing?.user.following || []
     };
@@ -122,18 +135,13 @@ export const githubStorage = {
     
     if (isTaken) throw new Error("Este nome já está em uso por outro agente.");
 
-    // 1. Remover nome antigo do registro
     const oldName = existingUser.user.name;
     delete registry.data[oldName];
-    
-    // 2. Adicionar novo nome
     registry.data[normalizedNew] = userId;
 
-    // 3. Atualizar Registro Global
     const regContent = btoa(unescape(encodeURIComponent(JSON.stringify(registry.data, null, 2))));
     await this.uploadToRepo(REGISTRY_PATH, regContent, `Update Registry: ${oldName} -> ${normalizedNew}`, registry.sha);
 
-    // 4. Atualizar Perfil do Usuário
     const updatedUser = { ...existingUser.user, name: normalizedNew };
     const userContent = btoa(unescape(encodeURIComponent(JSON.stringify(updatedUser, null, 2))));
     await this.uploadToRepo(`${USERS_PATH}/${userId}/profile.json`, userContent, `Update Name: ${normalizedNew}`, existingUser.sha);
@@ -141,48 +149,36 @@ export const githubStorage = {
     return updatedUser;
   },
 
+  async toggleBan(userId: string) {
+    const data = await this.getUserProfile(userId);
+    if (!data) throw new Error("User not found");
+    const updated = { ...data.user, isBanned: !data.user.isBanned };
+    await this.uploadToRepo(
+      `${USERS_PATH}/${userId}/profile.json`,
+      btoa(unescape(encodeURIComponent(JSON.stringify(updated, null, 2)))),
+      `Toggle Ban: ${userId} (${updated.isBanned})`,
+      data.sha
+    );
+    return updated;
+  },
+
   async toggleFollow(actorId: string, targetId: string) {
     const actorData = await this.getUserProfile(actorId);
     const targetData = await this.getUserProfile(targetId);
-
     if (!actorData || !targetData) throw new Error("Profiles not found");
-
     const isFollowing = actorData.user.following.includes(targetId);
-    
-    const newFollowing = isFollowing 
-      ? actorData.user.following.filter(id => id !== targetId)
-      : [...actorData.user.following, targetId];
-    
-    await this.uploadToRepo(
-      `${USERS_PATH}/${actorId}/profile.json`,
-      btoa(unescape(encodeURIComponent(JSON.stringify({ ...actorData.user, following: newFollowing }, null, 2)))),
-      `Update Following: ${targetId}`,
-      actorData.sha
-    );
-
-    const newFollowers = isFollowing
-      ? targetData.user.followers.filter(id => id !== actorId)
-      : [...targetData.user.followers, actorId];
-
-    await this.uploadToRepo(
-      `${USERS_PATH}/${targetId}/profile.json`,
-      btoa(unescape(encodeURIComponent(JSON.stringify({ ...targetData.user, followers: newFollowers }, null, 2)))),
-      `Update Followers: ${actorId}`,
-      targetData.sha
-    );
+    const newFollowing = isFollowing ? actorData.user.following.filter(id => id !== targetId) : [...actorData.user.following, targetId];
+    await this.uploadToRepo(`${USERS_PATH}/${actorId}/profile.json`, btoa(unescape(encodeURIComponent(JSON.stringify({ ...actorData.user, following: newFollowing }, null, 2)))), `Update Following: ${targetId}`, actorData.sha);
+    const newFollowers = isFollowing ? targetData.user.followers.filter(id => id !== actorId) : [...targetData.user.followers, actorId];
+    await this.uploadToRepo(`${USERS_PATH}/${targetId}/profile.json`, btoa(unescape(encodeURIComponent(JSON.stringify({ ...targetData.user, followers: newFollowers }, null, 2)))), `Update Followers: ${actorId}`, targetData.sha);
   },
 
   async verifyUser(userId: string, status: boolean) {
     const data = await this.getUserProfile(userId);
     if (!data) throw new Error("User not found");
-    
     const updated = { ...data.user, isVerified: status };
-    await this.uploadToRepo(
-      `${USERS_PATH}/${userId}/profile.json`,
-      btoa(unescape(encodeURIComponent(JSON.stringify(updated, null, 2)))),
-      `Set Verified: ${status}`,
-      data.sha
-    );
+    await this.uploadToRepo(`${USERS_PATH}/${userId}/profile.json`, btoa(unescape(encodeURIComponent(JSON.stringify(updated, null, 2)))), `Set Verified: ${status}`, data.sha);
+    return updated;
   },
 
   async getAssetMetadata(assetId: string): Promise<{ asset: Asset, sha: string } | null> {
@@ -201,22 +197,16 @@ export const githubStorage = {
   async uploadAsset(asset: Asset, files: { asset: File, thumb: File, video: File }, onProgress?: (msg: string) => void) {
     const assetId = asset.id;
     const folderPath = `${BASE_PATH}/${assetId}`;
-    
     const authorProfile = await this.getUserProfile(asset.userId);
-
     const thumbExt = getExtension(files.thumb.name) || 'png';
     const videoExt = getExtension(files.video.name) || 'mp4';
     const assetExt = getExtension(files.asset.name) || 'rbxm';
-
     if (onProgress) onProgress('Transmitindo Thumbnail...');
     await this.uploadToRepo(`${folderPath}/thumbnail.${thumbExt}`, await toBase64(files.thumb), `Thumb: ${assetId}`);
-    
     if (onProgress) onProgress('Transmitindo Vídeo...');
     await this.uploadToRepo(`${folderPath}/preview.${videoExt}`, await toBase64(files.video), `Video: ${assetId}`);
-    
     if (onProgress) onProgress('Transmitindo Binário...');
     await this.uploadToRepo(`${folderPath}/file.${assetExt}`, await toBase64(files.asset), `File: ${assetId}`);
-
     const metadata: Asset = {
       ...asset,
       authorVerified: authorProfile?.user.isVerified || false,
@@ -224,7 +214,6 @@ export const githubStorage = {
       videoUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${folderPath}/preview.${videoExt}`,
       fileUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${folderPath}/file.${assetExt}`
     };
-
     if (onProgress) onProgress('Finalizando Metadados...');
     await this.uploadToRepo(`${folderPath}/metadata.json`, btoa(unescape(encodeURIComponent(JSON.stringify(metadata, null, 2)))), `Meta: ${assetId}`);
     return metadata;
