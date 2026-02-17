@@ -7,6 +7,7 @@ const REPO = 'excaliburstore';
 const BRANCH = 'main';
 const BASE_PATH = 'Marketplace/Assets';
 const USERS_PATH = 'Marketplace/Users';
+const REGISTRY_PATH = 'Marketplace/Registry/usernames.json';
 
 async function toBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -47,6 +48,20 @@ export const githubStorage = {
     return await response.json();
   },
 
+  async getUsernameRegistry(): Promise<{ data: Record<string, string>, sha?: string }> {
+    try {
+      const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${REGISTRY_PATH}?t=${Date.now()}`, {
+        headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+      });
+      if (!res.ok) return { data: {} };
+      const json = await res.json();
+      const content = decodeURIComponent(escape(atob(json.content)));
+      return { data: JSON.parse(content), sha: json.sha };
+    } catch {
+      return { data: {} };
+    }
+  },
+
   async getUserProfile(userId: string): Promise<{ user: User, sha: string } | null> {
     try {
       const path = `${USERS_PATH}/${userId}/profile.json`;
@@ -65,10 +80,25 @@ export const githubStorage = {
   async syncUserProfile(user: Partial<User>): Promise<User> {
     if (!user.id) throw new Error("User ID required");
     const existing = await this.getUserProfile(user.id);
+    const registry = await this.getUsernameRegistry();
     
+    let finalName = user.name || "Unknown User";
+
+    // Se é um novo usuário, verificar se o nome do Google já está em uso
+    if (!existing) {
+      const isTaken = Object.keys(registry.data).find(name => name.toLowerCase() === finalName.toLowerCase() && registry.data[name] !== user.id);
+      if (isTaken) {
+        finalName = `${finalName}#${Math.floor(1000 + Math.random() * 9000)}`;
+      }
+      // Registrar no global
+      registry.data[finalName] = user.id;
+      const regContent = btoa(unescape(encodeURIComponent(JSON.stringify(registry.data, null, 2))));
+      await this.uploadToRepo(REGISTRY_PATH, regContent, `Register name: ${finalName}`, registry.sha);
+    }
+
     const newUser: User = {
       id: user.id,
-      name: user.name || "Unknown User",
+      name: existing?.user.name || finalName,
       email: user.email || "",
       avatar: user.avatar || "",
       joinedAt: existing?.user.joinedAt || Date.now(),
@@ -82,6 +112,35 @@ export const githubStorage = {
     return newUser;
   },
 
+  async changeUsername(userId: string, newName: string): Promise<User> {
+    const registry = await this.getUsernameRegistry();
+    const existingUser = await this.getUserProfile(userId);
+    if (!existingUser) throw new Error("Usuário não encontrado");
+
+    const normalizedNew = newName.trim();
+    const isTaken = Object.keys(registry.data).find(name => name.toLowerCase() === normalizedNew.toLowerCase() && registry.data[name] !== userId);
+    
+    if (isTaken) throw new Error("Este nome já está em uso por outro agente.");
+
+    // 1. Remover nome antigo do registro
+    const oldName = existingUser.user.name;
+    delete registry.data[oldName];
+    
+    // 2. Adicionar novo nome
+    registry.data[normalizedNew] = userId;
+
+    // 3. Atualizar Registro Global
+    const regContent = btoa(unescape(encodeURIComponent(JSON.stringify(registry.data, null, 2))));
+    await this.uploadToRepo(REGISTRY_PATH, regContent, `Update Registry: ${oldName} -> ${normalizedNew}`, registry.sha);
+
+    // 4. Atualizar Perfil do Usuário
+    const updatedUser = { ...existingUser.user, name: normalizedNew };
+    const userContent = btoa(unescape(encodeURIComponent(JSON.stringify(updatedUser, null, 2))));
+    await this.uploadToRepo(`${USERS_PATH}/${userId}/profile.json`, userContent, `Update Name: ${normalizedNew}`, existingUser.sha);
+
+    return updatedUser;
+  },
+
   async toggleFollow(actorId: string, targetId: string) {
     const actorData = await this.getUserProfile(actorId);
     const targetData = await this.getUserProfile(targetId);
@@ -90,7 +149,6 @@ export const githubStorage = {
 
     const isFollowing = actorData.user.following.includes(targetId);
     
-    // Update Actor
     const newFollowing = isFollowing 
       ? actorData.user.following.filter(id => id !== targetId)
       : [...actorData.user.following, targetId];
@@ -102,7 +160,6 @@ export const githubStorage = {
       actorData.sha
     );
 
-    // Update Target
     const newFollowers = isFollowing
       ? targetData.user.followers.filter(id => id !== actorId)
       : [...targetData.user.followers, actorId];
@@ -145,7 +202,6 @@ export const githubStorage = {
     const assetId = asset.id;
     const folderPath = `${BASE_PATH}/${assetId}`;
     
-    // Fetch author verification for cache
     const authorProfile = await this.getUserProfile(asset.userId);
 
     const thumbExt = getExtension(files.thumb.name) || 'png';

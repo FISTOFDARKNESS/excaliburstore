@@ -14,8 +14,6 @@ declare global {
 const ADMIN_EMAILS = ['kaioadrik08@gmail.com'];
 const ALLOWED_ROBLOX_EXTENSIONS = ['.rbxm', '.rbxl', '.rbxmx'];
 
-// Componente de Card com Hover Inteligente (1.2s)
-// Added React.FC type to explicitly handle React-specific props like 'key' and ensured correct null handling for currentUser
 const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () => void }> = ({ asset, currentUser, onClick }) => {
   const [showVideo, setShowVideo] = useState(false);
   const hoverTimer = useRef<any>(null);
@@ -117,6 +115,12 @@ export default function App() {
   const [isPostingComment, setIsPostingComment] = useState(false);
   const detailVideoRef = useRef<HTMLVideoElement>(null);
 
+  // Estados para edição de nome
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [isSavingName, setIsSavingName] = useState(false);
+  const [nameError, setNameError] = useState('');
+
   const isAdmin = (user: User | null) => user ? ADMIN_EMAILS.includes(user.email) : false;
 
   const syncRegistry = useCallback(async () => {
@@ -142,14 +146,12 @@ export default function App() {
     init();
   }, [syncRegistry]);
 
-  // Garantir que o vídeo do modal de detalhes continue tocando após re-renders
   useEffect(() => {
     if (selectedAsset && detailVideoRef.current) {
       detailVideoRef.current.play().catch(() => {});
     }
   }, [selectedAsset]);
 
-  // Carregamento do Script do Google e Renderização do Botão de Login
   useEffect(() => {
     if (currentUser) return;
     
@@ -198,6 +200,29 @@ export default function App() {
       setCurrentUser(null);
       localStorage.removeItem('ex_session_v2');
       window.location.reload();
+    }
+  };
+
+  const handleSaveName = async () => {
+    if (!currentUser || !newName.trim() || isSavingName) return;
+    if (newName.trim() === currentUser.name) {
+      setIsEditingName(false);
+      return;
+    }
+    
+    setIsSavingName(true);
+    setNameError('');
+    try {
+      const updated = await githubStorage.changeUsername(currentUser.id, newName.trim());
+      setCurrentUser(updated);
+      localStorage.setItem('ex_session_v2', JSON.stringify(updated));
+      setIsEditingName(false);
+      if (viewedUser?.id === currentUser.id) setViewedUser(updated);
+      alert("Identidade Reconfigurada com Sucesso.");
+    } catch (e: any) {
+      setNameError(e.message || "Falha na recalibração de nome.");
+    } finally {
+      setIsSavingName(false);
     }
   };
 
@@ -334,6 +359,9 @@ export default function App() {
     if (data) {
       setViewedUser(data.user);
       setSelectedAsset(null);
+      setNewName(data.user.name);
+      setIsEditingName(false);
+      setNameError('');
     }
     setLoading(false);
   };
@@ -403,7 +431,9 @@ export default function App() {
               <h2 className="text-5xl font-black italic uppercase tracking-tighter leading-none">{activeTab}</h2>
               <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.4em] mt-2">Unique Roblox Repository</p>
            </div>
-           <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="PROTOCOL SEARCH..." className="w-full md:w-64 bg-zinc-900 border border-white/5 rounded-xl py-4 px-6 text-[10px] font-black outline-none focus:border-white/20 transition-all" />
+           <div className="flex items-center gap-3 w-full md:w-auto">
+             <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="PROTOCOL SEARCH..." className="w-full md:w-64 bg-zinc-900 border border-white/5 rounded-xl py-4 px-6 text-[10px] font-black outline-none focus:border-white/20 transition-all" />
+           </div>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
@@ -427,13 +457,50 @@ export default function App() {
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/95 backdrop-blur-xl" onClick={() => setViewedUser(null)} />
           <div className="relative w-full max-w-4xl bg-[#080808] border border-white/10 rounded-[2.5rem] overflow-hidden flex flex-col max-h-[90vh] shadow-2xl">
-             <div className="p-10 border-b border-white/5 flex items-center gap-8 bg-gradient-to-r from-blue-900/10 via-transparent to-transparent">
+             <div className="p-10 border-b border-white/5 flex flex-col md:flex-row items-center gap-8 bg-gradient-to-r from-blue-900/10 via-transparent to-transparent">
                 <img src={viewedUser.avatar} className="w-32 h-32 rounded-3xl border border-white/10 shadow-2xl grayscale hover:grayscale-0 transition-all" referrerPolicy="no-referrer" />
                 <div className="flex-grow">
-                   <div className="flex items-center gap-4 mb-2">
-                      <h2 className="text-4xl font-black italic uppercase tracking-tighter leading-none">{viewedUser.name}</h2>
-                      {viewedUser.isVerified && <Icons.Verified className="w-8 h-8 text-blue-500" />}
-                      {!viewedUser.isVerified && <span className="bg-zinc-800 text-zinc-500 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Unverified</span>}
+                   <div className="flex flex-col gap-2 mb-2">
+                      {isEditingName && currentUser?.id === viewedUser.id ? (
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            <input 
+                              autoFocus
+                              value={newName}
+                              onChange={e => { setNewName(e.target.value); setNameError(''); }}
+                              className="bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-2xl font-black italic uppercase outline-none focus:border-white/30"
+                              placeholder="NOVO NOME..."
+                            />
+                            <button 
+                              onClick={handleSaveName}
+                              disabled={isSavingName}
+                              className="bg-white text-black px-6 py-3 rounded-xl font-black text-[10px] uppercase hover:bg-zinc-200 transition-all"
+                            >
+                              {isSavingName ? 'Verificando...' : 'Salvar'}
+                            </button>
+                            <button 
+                              onClick={() => setIsEditingName(false)}
+                              className="px-4 py-3 rounded-xl border border-white/10 text-zinc-500 font-black text-[10px] uppercase"
+                            >
+                              X
+                            </button>
+                          </div>
+                          {nameError && <p className="text-red-500 text-[9px] font-black uppercase tracking-widest">{nameError}</p>}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-4">
+                          <h2 className="text-4xl font-black italic uppercase tracking-tighter leading-none">{viewedUser.name}</h2>
+                          {viewedUser.isVerified && <Icons.Verified className="w-8 h-8 text-blue-500" />}
+                          {currentUser?.id === viewedUser.id && (
+                            <button onClick={() => setIsEditingName(true)} className="text-zinc-600 hover:text-white transition-colors">
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {!viewedUser.isVerified && <span className="w-fit bg-zinc-800/50 text-zinc-500 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Unverified Agent</span>}
                    </div>
                    <div className="flex gap-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">
                       <span className="flex items-center gap-2"><div className="w-1 h-1 bg-white rounded-full"/> {viewedUser.followers.length} Seguidores</span>
@@ -506,7 +573,6 @@ export default function App() {
               </div>
               <p className="text-zinc-400 mb-10 text-sm bg-white/[0.02] p-6 rounded-[1.5rem] border border-white/5 italic leading-relaxed whitespace-pre-wrap">"{selectedAsset.description}"</p>
               
-              {/* Seção de Comentários Completa */}
               <div className="mt-12 pt-12 border-t border-white/5">
                 <h3 className="text-xl font-black uppercase italic tracking-tighter mb-8 italic">Protocol Feedback</h3>
                 {currentUser ? (
@@ -593,7 +659,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Upload Modal Completo */}
+      {/* Upload Modal */}
       {showUpload && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/98 backdrop-blur-3xl" onClick={() => !isUploading && setShowUpload(false)} />
