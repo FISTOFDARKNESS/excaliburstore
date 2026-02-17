@@ -165,6 +165,44 @@ export const githubStorage = {
     }));
   },
 
+  async removeAsset(assetId: string) {
+    const folderPath = `${BASE_PATH}/${assetId}`;
+    
+    // 1. Remover do registry.json
+    const { assets, sha } = await this.getRegistry();
+    const updatedAssets = assets.filter(a => a.id !== assetId);
+    const registryContent = btoa(unescape(encodeURIComponent(JSON.stringify(updatedAssets, null, 2))));
+    await this.uploadToRepo(REGISTRY_PATH, registryContent, `Remove Asset: ${assetId}`, sha);
+
+    // 2. Tentar remover os arquivos da pasta (opcional, mas recomendado)
+    try {
+      const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${folderPath}`, {
+        headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+      });
+      if (res.ok) {
+        const files = await res.json();
+        if (Array.isArray(files)) {
+          for (const file of files) {
+            await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${file.path}`, {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                message: `Deleting file for asset ${assetId}`,
+                sha: file.sha,
+                branch: BRANCH
+              })
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Could not delete physical files, but registry was updated:", e);
+    }
+  },
+
   async getAllAssets(): Promise<Asset[]> {
     const { assets } = await this.getRegistry();
     return assets;

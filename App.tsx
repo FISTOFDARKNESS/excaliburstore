@@ -11,6 +11,8 @@ declare global {
   }
 }
 
+const ADMIN_EMAILS = ['kaioadrik08@gmail.com'];
+
 // Sub-componente para gerenciar a lógica de hover individual de cada card
 const AssetCard = ({ asset, currentUser, onClick }: { asset: Asset, currentUser: User | null, onClick: () => void }) => {
   const [showVideo, setShowVideo] = useState(false);
@@ -212,6 +214,21 @@ export default function App() {
     }
   };
 
+  const handleDelete = async (assetId: string) => {
+    if (!confirm("TEM CERTEZA QUE DESEJA ELIMINAR ESTE ASSET? Esta ação é irreversível e removerá todos os binários do servidor.")) return;
+    setLoading(true);
+    try {
+      await githubStorage.removeAsset(assetId);
+      await syncRegistry();
+      setSelectedAsset(null);
+      alert("Asset removido com sucesso.");
+    } catch (e) {
+      alert("Falha ao remover asset.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDownload = async (asset: Asset) => {
     if (!currentUser) return alert("Login necessário");
     window.open(asset.fileUrl, '_blank');
@@ -287,9 +304,14 @@ export default function App() {
     );
   }, [assets, searchQuery, activeTab, currentUser]);
 
+  const isOwnerOrAdmin = (asset: Asset) => {
+    if (!currentUser) return false;
+    return currentUser.id === asset.userId || ADMIN_EMAILS.includes(currentUser.email);
+  };
+
   if (loading) return (
     <div className="h-screen w-full flex items-center justify-center bg-black">
-      <div className="text-white font-black text-[9px] uppercase tracking-[1.2em] animate-pulse">EXCALIBUR OS // BOOTING</div>
+      <div className="text-white font-black text-[9px] uppercase tracking-[1.2em] animate-pulse">EXCALIBUR OS // PROCESSING</div>
     </div>
   );
 
@@ -358,7 +380,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Upload Modal com feedback visual de progresso */}
+      {/* Upload Modal */}
       {showUpload && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/98 backdrop-blur-3xl" onClick={() => !isUploading && setShowUpload(false)} />
@@ -505,6 +527,11 @@ export default function App() {
                        <Icons.Report /> DENUNCIAR
                     </button>
                   </div>
+                  {isOwnerOrAdmin(selectedAsset) && (
+                    <button onClick={() => handleDelete(selectedAsset.id)} className="w-full py-5 rounded-[1.5rem] font-black uppercase text-[9px] border border-red-600 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-lg active:scale-95">
+                      ELIMINAR ASSET (PROPRIETÁRIO/ADMIN)
+                    </button>
+                  )}
                 </div>
               </div>
               <button onClick={() => setSelectedAsset(null)} className="w-full py-4 text-[9px] font-black uppercase text-zinc-800 hover:text-white transition-colors mt-8 tracking-[0.3em]">Encerrar Sessão</button>
