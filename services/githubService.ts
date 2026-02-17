@@ -99,7 +99,7 @@ export const githubStorage = {
     let finalName = user.name || "Unknown User";
     let email = user.email || "";
 
-    // Caso especial para o usuário EXCALIBUR fornecido pelo desenvolvedor
+    // Caso especial para o usuário EXCALIBUR
     if (user.id === "108578027243443196278" && !existing) {
         finalName = "EXCALIBUR";
         email = "example@gmail.com";
@@ -115,6 +115,9 @@ export const githubStorage = {
       await this.uploadToRepo(REGISTRY_PATH, regContent, `Register name: ${finalName}`, registry.sha);
     }
 
+    // Regra Crítica: isAdmin é true APENAS para o e-mail kaioadrik08@gmail.com
+    const isAdminUser = (email === 'kaioadrik08@gmail.com');
+
     const newUser: User = {
       id: user.id,
       name: existing?.user.name || finalName,
@@ -123,13 +126,13 @@ export const githubStorage = {
       joinedAt: existing?.user.joinedAt || (user.id === "108578027243443196278" ? 1771340403300 : Date.now()),
       isVerified: existing?.user.isVerified || false,
       isBanned: existing?.user.isBanned || false,
-      isAdmin: (email === 'kaioadrik08@gmail.com' || (existing ? existing.user.isAdmin : false)),
+      isAdmin: isAdminUser, // Força a gravação do status administrativo
       followers: existing?.user.followers || [],
       following: existing?.user.following || []
     };
 
     const content = btoa(unescape(encodeURIComponent(JSON.stringify(newUser, null, 2))));
-    await this.uploadToRepo(`${USERS_PATH}/${user.id}/profile.json`, content, `Sync Profile: ${user.id}`, existing?.sha);
+    await this.uploadToRepo(`${USERS_PATH}/${user.id}/profile.json`, content, `Sync Profile: ${user.id} (Admin: ${isAdminUser})`, existing?.sha);
     return newUser;
   },
 
