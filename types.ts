@@ -1,25 +1,14 @@
 
 export enum Category {
   MODEL = 'Model',
-  MODULE = 'Module',
   SCRIPT = 'Script',
   MAP = 'Map',
-  MODEL_3D = '3D Model',
   UI = 'UI',
-  PLUGIN = 'Plugin'
+  PLUGIN = 'Plugin',
+  ANIMATION = 'Animation'
 }
 
-export interface User {
-  id: string;
-  name: string;
-  username: string;
-  avatar: string;
-  provider: 'google' | 'discord';
-  followers: string[];
-  following: string[];
-  bio?: string;
-  links?: { label: string, url: string }[];
-}
+export type RobloxFileType = '.rbxm' | '.rbxl' | '.rbxmx';
 
 export interface Comment {
   id: string;
@@ -30,31 +19,32 @@ export interface Comment {
   timestamp: number;
 }
 
-export interface VerificationData {
-  status: string;
-  checkedAt: number;
-  apiProvider: string;
-  verified: boolean;
-}
-
 export interface Asset {
-  id: string;
+  id: string; // Internal Unique ID
   userId: string;
   authorName: string;
   authorAvatar: string;
   title: string;
+  originalFileName: string;
   description: string;
   category: Category;
   thumbnailUrl: string;
-  videoUrl?: string; // Campo opcional para vídeo
-  fileType: '.rbxm' | '.rbxl' | '.rbxmx';
-  fileData?: string; // Caminho do arquivo no Puter
-  creditsRequired: boolean;
-  likes: string[];
-  dislikes: string[];
-  reports: string[];
-  comments: Comment[];
+  fileUrl: string;
+  videoUrl?: string; // Mandatório agora
+  fileType: RobloxFileType;
   downloadCount: number;
+  likes: string[]; // User IDs
+  reports: number;
+  credits: string; // Autor original/Créditos
+  comments: Comment[];
   timestamp: number;
-  verification?: VerificationData; // Dados de verificação
+  keywords: string[];
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string;
+  joinedAt: number;
 }
