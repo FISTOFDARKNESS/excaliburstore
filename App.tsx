@@ -54,7 +54,7 @@ const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () 
            </div>
            {asset.authorVerified && (
              <div className="bg-blue-500/20 backdrop-blur-md p-1.5 rounded-lg border border-blue-500/30">
-               <Icons.Verified className="w-4 h-4 text-blue-500" />
+               <Icons.Verified className="w-3 h-3 text-blue-500" />
              </div>
            )}
         </div>
@@ -148,10 +148,11 @@ export default function App() {
   }, [currentUser]);
 
   useEffect(() => {
-    if (activeTab === 'admin' && !isAdmin(currentUser)) {
-      setActiveTab('explore');
-    }
-  }, [activeTab, currentUser]);
+  if (!loading && activeTab === 'admin' && !isAdmin(currentUser)) {
+    setActiveTab('explore');
+  }
+}, [activeTab, currentUser, loading]);
+
 
   const syncRegistry = useCallback(async () => {
     try {
@@ -547,6 +548,7 @@ export default function App() {
                         <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.4em] mt-2">Atalho rápido ativado: CTRL + B</p>
                     </div>
                     <div className="flex gap-2">
+                    
                         {(['all', 'verified', 'banned', 'reports'] as AdminSubTab[]).map(tab => (
                             <button 
                                 key={tab} 
