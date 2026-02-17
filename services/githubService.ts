@@ -26,13 +26,27 @@ const getExtension = (filename: string) => {
 };
 
 export const githubStorage = {
-  async uploadToRepo(path: string, content: string, message: string, sha?: string) {
-    const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`, {
-      method: 'PUT',
+  async fetchWithNoCache(url: string, options: RequestInit = {}) {
+    const defaultHeaders = {
+      'Authorization': `token ${GITHUB_TOKEN}`,
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    };
+
+    return fetch(`${url}${url.includes('?') ? '&' : '?'}nocache=${Date.now()}`, {
+      ...options,
       headers: {
-        'Authorization': `token ${GITHUB_TOKEN}`,
-        'Content-Type': 'application/json',
+        ...defaultHeaders,
+        ...options.headers
       },
+      cache: 'no-store'
+    });
+  },
+
+  async uploadToRepo(path: string, content: string, message: string, sha?: string) {
+    const response = await this.fetchWithNoCache(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`, {
+      method: 'PUT',
       body: JSON.stringify({
         message,
         content,
@@ -50,9 +64,7 @@ export const githubStorage = {
 
   async getUsernameRegistry(): Promise<{ data: Record<string, string>, sha?: string }> {
     try {
-      const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${REGISTRY_PATH}?t=${Date.now()}`, {
-        headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-      });
+      const res = await this.fetchWithNoCache(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${REGISTRY_PATH}`);
       if (res.status === 404) return { data: {} };
       if (!res.ok) return { data: {} };
       const json = await res.json();
@@ -66,9 +78,7 @@ export const githubStorage = {
   async getUserProfile(userId: string): Promise<{ user: User, sha: string } | null> {
     try {
       const path = `${USERS_PATH}/${userId}/profile.json`;
-      const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}?t=${Date.now()}`, {
-        headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-      });
+      const res = await this.fetchWithNoCache(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`);
       if (res.status === 404) return null;
       if (!res.ok) return null;
       const json = await res.json();
@@ -81,9 +91,7 @@ export const githubStorage = {
 
   async getAllUsers(): Promise<User[]> {
     try {
-      const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${USERS_PATH}?t=${Date.now()}`, {
-        headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-      });
+      const res = await this.fetchWithNoCache(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${USERS_PATH}`);
       if (res.status === 404) return [];
       if (!res.ok) return [];
       const folders = (await res.json()).filter((i: any) => i.type === 'dir');
@@ -102,10 +110,9 @@ export const githubStorage = {
     let finalName = user.name || "Unknown User";
     let email = user.email || "";
 
-    // Caso especial para o usuário EXCALIBUR
     if (user.id === "108578027243443196278" && !existing) {
         finalName = "EXCALIBUR";
-        email = "kaioadrik08@gmail.com"; // Associando ao email admin conforme solicitado anteriormente
+        email = "kaioadrik08@gmail.com";
     }
 
     if (!existing) {
@@ -118,7 +125,6 @@ export const githubStorage = {
       await this.uploadToRepo(REGISTRY_PATH, regContent, `Register name: ${finalName}`, registry.sha);
     }
 
-    // isAdmin é true APENAS para o e-mail kaioadrik08@gmail.com ou se já era admin
     const isAdminUser = (email === 'kaioadrik08@gmail.com') || (existing?.user.isAdmin || false);
 
     const newUser: User = {
@@ -135,32 +141,8 @@ export const githubStorage = {
     };
 
     const content = btoa(unescape(encodeURIComponent(JSON.stringify(newUser, null, 2))));
-    await this.uploadToRepo(`${USERS_PATH}/${user.id}/profile.json`, content, `Sync Profile: ${user.id} (Admin: ${isAdminUser})`, existing?.sha);
+    await this.uploadToRepo(`${USERS_PATH}/${user.id}/profile.json`, content, `Sync Profile: ${user.id}`, existing?.sha);
     return newUser;
-  },
-
-  async changeUsername(userId: string, newName: string): Promise<User> {
-    const registry = await this.getUsernameRegistry();
-    const existingUser = await this.getUserProfile(userId);
-    if (!existingUser) throw new Error("Usuário não encontrado");
-
-    const normalizedNew = newName.trim();
-    const isTaken = Object.keys(registry.data).find(name => name.toLowerCase() === normalizedNew.toLowerCase() && registry.data[name] !== userId);
-    
-    if (isTaken) throw new Error("Este nome já está em uso por outro agente.");
-
-    const oldName = existingUser.user.name;
-    delete registry.data[oldName];
-    registry.data[normalizedNew] = userId;
-
-    const regContent = btoa(unescape(encodeURIComponent(JSON.stringify(registry.data, null, 2))));
-    await this.uploadToRepo(REGISTRY_PATH, regContent, `Update Registry: ${oldName} -> ${normalizedNew}`, registry.sha);
-
-    const updatedUser = { ...existingUser.user, name: normalizedNew };
-    const userContent = btoa(unescape(encodeURIComponent(JSON.stringify(updatedUser, null, 2))));
-    await this.uploadToRepo(`${USERS_PATH}/${userId}/profile.json`, userContent, `Update Name: ${normalizedNew}`, existingUser.sha);
-
-    return updatedUser;
   },
 
   async toggleBan(userId: string) {
@@ -170,21 +152,10 @@ export const githubStorage = {
     await this.uploadToRepo(
       `${USERS_PATH}/${userId}/profile.json`,
       btoa(unescape(encodeURIComponent(JSON.stringify(updated, null, 2)))),
-      `Toggle Ban: ${userId} (${updated.isBanned})`,
+      `Toggle Ban: ${userId}`,
       data.sha
     );
     return updated;
-  },
-
-  async toggleFollow(actorId: string, targetId: string) {
-    const actorData = await this.getUserProfile(actorId);
-    const targetData = await this.getUserProfile(targetId);
-    if (!actorData || !targetData) throw new Error("Profiles not found");
-    const isFollowing = actorData.user.following.includes(targetId);
-    const newFollowing = isFollowing ? actorData.user.following.filter(id => id !== targetId) : [...actorData.user.following, targetId];
-    await this.uploadToRepo(`${USERS_PATH}/${actorId}/profile.json`, btoa(unescape(encodeURIComponent(JSON.stringify({ ...actorData.user, following: newFollowing }, null, 2)))), `Update Following: ${targetId}`, actorData.sha);
-    const newFollowers = isFollowing ? targetData.user.followers.filter(id => id !== actorId) : [...targetData.user.followers, actorId];
-    await this.uploadToRepo(`${USERS_PATH}/${targetId}/profile.json`, btoa(unescape(encodeURIComponent(JSON.stringify({ ...targetData.user, followers: newFollowers }, null, 2)))), `Update Followers: ${actorId}`, targetData.sha);
   },
 
   async verifyUser(userId: string, status: boolean) {
@@ -198,9 +169,7 @@ export const githubStorage = {
   async getAssetMetadata(assetId: string): Promise<{ asset: Asset, sha: string } | null> {
     try {
       const path = `${BASE_PATH}/${assetId}/metadata.json`;
-      const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}?t=${Date.now()}`, {
-        headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-      });
+      const res = await this.fetchWithNoCache(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`);
       if (res.status === 404) return null;
       if (!res.ok) return null;
       const json = await res.json();
@@ -216,12 +185,16 @@ export const githubStorage = {
     const thumbExt = getExtension(files.thumb.name) || 'png';
     const videoExt = getExtension(files.video.name) || 'mp4';
     const assetExt = getExtension(files.asset.name) || 'rbxm';
+    
     if (onProgress) onProgress('Transmitindo Thumbnail...');
     await this.uploadToRepo(`${folderPath}/thumbnail.${thumbExt}`, await toBase64(files.thumb), `Thumb: ${assetId}`);
+    
     if (onProgress) onProgress('Transmitindo Vídeo...');
     await this.uploadToRepo(`${folderPath}/preview.${videoExt}`, await toBase64(files.video), `Video: ${assetId}`);
+    
     if (onProgress) onProgress('Transmitindo Binário...');
     await this.uploadToRepo(`${folderPath}/file.${assetExt}`, await toBase64(files.asset), `File: ${assetId}`);
+    
     const metadata: Asset = {
       ...asset,
       authorVerified: authorProfile?.user.isVerified || false,
@@ -229,6 +202,7 @@ export const githubStorage = {
       videoUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${folderPath}/preview.${videoExt}`,
       fileUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${folderPath}/file.${assetExt}`
     };
+    
     if (onProgress) onProgress('Finalizando Metadados...');
     await this.uploadToRepo(`${folderPath}/metadata.json`, btoa(unescape(encodeURIComponent(JSON.stringify(metadata, null, 2)))), `Meta: ${assetId}`);
     return metadata;
@@ -257,30 +231,9 @@ export const githubStorage = {
     return this.updateAssetMetadata(assetId, (current) => ({ ...current, reports: (current.reports || 0) + 1 }));
   },
 
-  async addComment(assetId: string, comment: Comment) {
-    return this.updateAssetMetadata(assetId, (current) => ({ ...current, comments: [comment, ...(current.comments || [])] }));
-  },
-
-  async removeAsset(assetId: string) {
-    const folderPath = `${BASE_PATH}/${assetId}`;
-    const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${folderPath}`, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` } });
-    if (res.ok) {
-      const files = await res.json();
-      for (const file of files) {
-        await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${file.path}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: `Delete asset ${assetId}`, sha: file.sha, branch: BRANCH })
-        });
-      }
-    }
-  },
-
   async getAllAssets(): Promise<Asset[]> {
     try {
-      const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${BASE_PATH}?t=${Date.now()}`, {
-        headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-      });
+      const res = await this.fetchWithNoCache(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${BASE_PATH}`);
       if (res.status === 404) return [];
       if (!res.ok) return [];
       const folders = (await res.json()).filter((i: any) => i.type === 'dir');

@@ -26,6 +26,10 @@ const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () 
     }
   }, [isHovered]);
 
+  // Forçamos o recarregamento do thumbnail com timestamp atual para evitar cache
+  const thumbUrl = `${asset.thumbnailUrl}?t=${Date.now()}`;
+  const videoUrl = asset.videoUrl ? `${asset.videoUrl}?t=${Date.now()}` : '';
+
   return (
     <div 
       onClick={onClick}
@@ -35,14 +39,14 @@ const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () 
     >
       <div className="h-[220px] relative overflow-hidden bg-black">
         <img 
-          src={`${asset.thumbnailUrl}?t=${asset.timestamp}`} 
-          className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ${isHovered && asset.videoUrl ? 'opacity-0 scale-110' : 'opacity-100 scale-100'}`}
+          src={thumbUrl} 
+          className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ${isHovered && videoUrl ? 'opacity-0 scale-110' : 'opacity-100 scale-100'}`}
           alt={asset.title}
         />
-        {asset.videoUrl && (
+        {videoUrl && (
           <video 
             ref={videoRef}
-            src={`${asset.videoUrl}?t=${asset.timestamp}`} 
+            src={videoUrl} 
             muted 
             loop 
             playsInline 
@@ -95,6 +99,7 @@ export default function App() {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedTerms, setExpandedTerms] = useState<string[]>([]);
   const [isExpanding, setIsExpanding] = useState(false);
@@ -107,11 +112,16 @@ export default function App() {
 
   const isAdmin = (user: User | null) => user ? (user.isAdmin || ADMIN_EMAILS.includes(user.email)) : false;
 
-  const syncRegistry = useCallback(async () => {
+  const syncRegistry = useCallback(async (isManual = false) => {
+    if (isManual) setIsRefreshing(true);
     try {
       const list = await githubStorage.getAllAssets();
       setAssets(list.sort((a, b) => b.timestamp - a.timestamp));
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      console.error(e); 
+    } finally {
+      if (isManual) setIsRefreshing(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -173,7 +183,9 @@ export default function App() {
 
   const handleDownload = async (asset: Asset) => {
     if (!currentUser) return alert("Identify required.");
-    window.open(asset.fileUrl, '_blank');
+    // Forçamos o download com no-cache dinâmico
+    const finalUrl = `${asset.fileUrl}?t=${Date.now()}`;
+    window.open(finalUrl, '_blank');
     const updated = await githubStorage.incrementDownload(asset.id);
     setAssets(prev => prev.map(a => a.id === asset.id ? updated : a));
     if (selectedAsset?.id === asset.id) setSelectedAsset(updated);
@@ -211,7 +223,7 @@ export default function App() {
         authorVerified: currentUser.isVerified
       };
       await githubStorage.uploadAsset(asset, { asset: assetFile, thumb: thumbFile, video: videoFile }, (msg) => { setUploadProgress(msg); setUploadStep(prev => Math.min(prev + 1, 6)); });
-      setIsUploading(false); setShowUpload(false); setUploadStep(0); syncRegistry();
+      setIsUploading(false); setShowUpload(false); setUploadStep(0); syncRegistry(true);
     } catch (err) { alert("Uplink Failed."); setIsUploading(false); }
   };
 
@@ -238,7 +250,7 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row max-w-[1600px] mx-auto">
       
-      {/* Sidebar - Fix: Fixed position with margin for content */}
+      {/* Sidebar */}
       <aside className="w-full lg:w-72 shrink-0 flex flex-col glass-panel lg:fixed h-auto lg:h-[calc(100vh-80px)] top-10 left-10 rounded-[3rem] p-8 z-50 border-white/5">
         <div className="flex items-center gap-4 mb-16">
           <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-xl">
@@ -285,12 +297,20 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Main Layout Area - Fix: ml-80 to avoid overlapping sidebar */}
+      {/* Main Layout Area */}
       <main className="flex-grow lg:ml-80 p-6 lg:p-10">
         
         <header className="mb-16 flex flex-col md:flex-row justify-between items-start md:items-end gap-10">
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-700 mb-3 italic">System // Archive</p>
+            <div className="flex items-center gap-4 mb-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-700 italic">System // Archive</p>
+              <button 
+                onClick={() => syncRegistry(true)} 
+                className={`flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-all ${isRefreshing ? 'animate-pulse' : ''}`}
+              >
+                {isRefreshing ? 'Syncing...' : 'Force Sync'}
+              </button>
+            </div>
             <h2 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter leading-none glitch-text">{activeTab}</h2>
           </div>
           
@@ -343,14 +363,14 @@ export default function App() {
         )}
       </main>
 
-      {/* Modal overlays stay fixed to screen */}
+      {/* Asset Modal */}
       {selectedAsset && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-brand-black/98 backdrop-blur-3xl" onClick={() => setSelectedAsset(null)} />
           <div className="relative w-full max-w-6xl glass-panel rounded-[3.5rem] overflow-hidden flex flex-col md:flex-row max-h-[85vh] animate-fade-in">
             <div className="md:w-[65%] p-10 overflow-y-auto custom-scrollbar border-r border-white/5">
               <div className="aspect-video rounded-[2.5rem] overflow-hidden bg-black mb-10 border border-white/10 group">
-                <video src={`${selectedAsset.videoUrl}?t=${selectedAsset.timestamp}`} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+                <video src={`${selectedAsset.videoUrl}?t=${Date.now()}`} autoPlay muted loop playsInline className="w-full h-full object-cover" />
               </div>
               <h2 className="text-4xl font-black italic uppercase tracking-tighter mb-6">{selectedAsset.title}</h2>
               <div className="flex flex-wrap gap-2 mb-8">
