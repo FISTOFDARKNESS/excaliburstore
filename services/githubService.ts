@@ -1,6 +1,6 @@
 import { Asset, Comment } from '../types';
 
-const GITHUB_TOKEN = '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';
+const GITHUB_TOKEN = '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';
 const OWNER = 'FISTOFDARKNESS';
 const REPO = 'excaliburstore';
 const BRANCH = 'main';
