@@ -1,0 +1,64 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #050505;
+    background-image: radial-gradient(circle at 50% 0%, #1a1a1e 0%, #050505 80%);
+    background-attachment: fixed;
+    color: white;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-zinc-900/60 border border-white/10 backdrop-blur-2xl shadow-2xl;
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-4 px-5 py-3 rounded-xl transition-all duration-300 font-bold text-[11px] uppercase tracking-widest;
+  }
+
+  .sidebar-item.active {
+    @apply bg-white text-black shadow-lg shadow-white/10;
+  }
+
+  .sidebar-item:not(.active) {
+    @apply text-zinc-500 hover:text-white hover:bg-white/5;
+  }
+
+  .premium-card {
+    @apply relative overflow-hidden glass-panel transition-all duration-300 hover:border-white/30 hover:-translate-y-1.5;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-zinc-800 rounded-full hover:bg-zinc-700;
+  }
+
+  .animate-float {
+    animation: float 5s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .input-terminal {
+    @apply w-full bg-black/40 border border-white/10 rounded-xl py-3.5 px-5 text-[12px] font-bold uppercase outline-none focus:border-white/40 transition-all placeholder:text-zinc-800;
+  }
+
+  .btn-primary {
+    @apply px-8 py-4 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-zinc-200 active:scale-95 transition-all;
+  }
+}
