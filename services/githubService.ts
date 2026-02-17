@@ -88,9 +88,10 @@ export const githubStorage = {
     // Domínio oficial raw.githubusercontent.com é mais estável para mídias
     const metadata: Asset = {
       ...asset,
-      thumbnailUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${folderPath}/${thumbName}`,
-      videoUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${folderPath}/${videoName}`,
-      fileUrl: `https://github.com/${OWNER}/${REPO}/raw/refs/heads/${BRANCH}/${folderPath}/${assetName}`
+thumbnailUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${folderPath}/${thumbName}`,
+videoUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${folderPath}/${videoName}`,
+fileUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${folderPath}/${assetName}`
+
     };
 
     const metaContent = btoa(unescape(encodeURIComponent(JSON.stringify(metadata, null, 2))));

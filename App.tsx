@@ -234,10 +234,12 @@ export default function App() {
                     alt={asset.title}
                     onLoad={(e) => (e.currentTarget.style.opacity = '1')}
                     onError={(e) => {
-                      // Se a imagem falhar (provavelmente 404 temporário do GitHub), tenta recarregar após 5s
+                      const target = e.currentTarget;
+                      // Se a imagem falhar, tenta recarregar após 5s
                       setTimeout(() => {
-                        const img = e.currentTarget as HTMLImageElement;
-                        img.src = `${asset.thumbnailUrl}?t=${Date.now()}`;
+                        if (target) {
+                          target.src = `${asset.thumbnailUrl}?t=${Date.now()}`;
+                        }
                       }, 5000);
                     }}
                     style={{ opacity: 0.3 }}
@@ -330,9 +332,11 @@ export default function App() {
                     autoPlay muted loop playsInline 
                     className="w-full h-full object-cover" 
                     onError={(e) => {
+                      const target = e.currentTarget;
                       setTimeout(() => {
-                        const vid = e.currentTarget as HTMLVideoElement;
-                        vid.src = `${selectedAsset.videoUrl}?t=${Date.now()}`;
+                        if (target) {
+                          target.src = `${selectedAsset.videoUrl}?t=${Date.now()}`;
+                        }
                       }, 5000);
                     }}
                   />
