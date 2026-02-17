@@ -97,6 +97,13 @@ export const githubStorage = {
     const registry = await this.getUsernameRegistry();
     
     let finalName = user.name || "Unknown User";
+    let email = user.email || "";
+
+    // Caso especial para o usuário EXCALIBUR fornecido pelo desenvolvedor
+    if (user.id === "108578027243443196278" && !existing) {
+        finalName = "EXCALIBUR";
+        email = "example@gmail.com";
+    }
 
     if (!existing) {
       const isTaken = Object.keys(registry.data).find(name => name.toLowerCase() === finalName.toLowerCase() && registry.data[name] !== user.id);
@@ -108,16 +115,15 @@ export const githubStorage = {
       await this.uploadToRepo(REGISTRY_PATH, regContent, `Register name: ${finalName}`, registry.sha);
     }
 
-    const email = user.email || "";
     const newUser: User = {
       id: user.id,
       name: existing?.user.name || finalName,
       email: email,
-      avatar: user.avatar || "",
-      joinedAt: existing?.user.joinedAt || Date.now(),
+      avatar: existing?.user.avatar || user.avatar || "https://lh3.googleusercontent.com/a/ACg8ocIG6atjZk3j17lrPesukyA0RGHDlAQTPSSTRUEMRsDFdRIhXv4=s96-c",
+      joinedAt: existing?.user.joinedAt || (user.id === "108578027243443196278" ? 1771340403300 : Date.now()),
       isVerified: existing?.user.isVerified || false,
       isBanned: existing?.user.isBanned || false,
-      isAdmin: (email === 'kaioadrik08@gmail.com'), // Define como admin se o e-mail for o especificado
+      isAdmin: (email === 'kaioadrik08@gmail.com' || (existing ? existing.user.isAdmin : false)),
       followers: existing?.user.followers || [],
       following: existing?.user.following || []
     };
