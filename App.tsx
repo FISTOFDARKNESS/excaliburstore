@@ -125,10 +125,23 @@ export default function App() {
     init();
   }, [syncRegistry]);
 
+  // Carregamento do Script do Google e Renderização do Botão
   useEffect(() => {
     if (currentUser) return;
+    
+    const scriptId = 'google-gsi-client';
+    if (!document.getElementById(scriptId)) {
+      const script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+
     let interval = setInterval(() => {
-      if (window.google?.accounts?.id) {
+      const btn = document.getElementById('google-login-btn');
+      if (window.google?.accounts?.id && btn) {
         window.google.accounts.id.initialize({
           client_id: "308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com",
           callback: async (response: any) => {
@@ -143,13 +156,26 @@ export default function App() {
             localStorage.setItem('ex_session_v2', JSON.stringify(user));
           },
         });
-        const btn = document.getElementById('google-login-btn');
-        if (btn) window.google.accounts.id.renderButton(btn, { theme: 'filled_black', size: 'large', shape: 'pill' });
+        window.google.accounts.id.renderButton(btn, { 
+          theme: 'filled_black', 
+          size: 'large', 
+          shape: 'pill',
+          width: btn.offsetWidth
+        });
         clearInterval(interval);
       }
     }, 500);
+    
     return () => clearInterval(interval);
   }, [currentUser]);
+
+  const handleLogout = () => {
+    if (confirm("Deseja encerrar a sessão atual?")) {
+      setCurrentUser(null);
+      localStorage.removeItem('ex_session_v2');
+      window.location.reload();
+    }
+  };
 
   const handleFollow = async (targetId: string) => {
     if (!currentUser) return alert("Login necessário");
@@ -321,19 +347,27 @@ export default function App() {
         </nav>
         <div className="mt-auto pt-6 border-t border-white/5">
           {currentUser ? (
-            <div className="p-3.5 bg-white/5 rounded-xl border border-white/5 flex items-center gap-3 cursor-pointer group" onClick={() => openUserProfile(currentUser.id)}>
-              <img src={currentUser.avatar} className="w-7 h-7 rounded-lg grayscale group-hover:grayscale-0 transition-all" referrerPolicy="no-referrer" />
-              <div className="flex-grow min-w-0">
-                <p className="text-[9px] font-black truncate flex items-center gap-1">
-                  {currentUser.name} {currentUser.isVerified && <Icons.Verified className="w-3 h-3 text-blue-400" />}
-                </p>
-                <p className="text-[7px] text-zinc-500 font-bold uppercase">{currentUser.followers.length} Followers</p>
+            <div className="relative group">
+              <div className="p-3.5 bg-white/5 rounded-xl border border-white/5 flex items-center gap-3 cursor-pointer group-hover:opacity-20 transition-all" onClick={() => openUserProfile(currentUser.id)}>
+                <img src={currentUser.avatar} className="w-7 h-7 rounded-lg grayscale group-hover:grayscale-0 transition-all" referrerPolicy="no-referrer" />
+                <div className="flex-grow min-w-0">
+                  <p className="text-[9px] font-black truncate flex items-center gap-1">
+                    {currentUser.name} {currentUser.isVerified && <Icons.Verified className="w-3 h-3 text-blue-400" />}
+                  </p>
+                  <p className="text-[7px] text-zinc-500 font-bold uppercase">{currentUser.followers.length} Followers</p>
+                </div>
               </div>
+              <button 
+                onClick={handleLogout}
+                className="absolute inset-0 w-full h-full flex items-center justify-center bg-red-600/90 rounded-xl text-[9px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all shadow-xl z-10"
+              >
+                Desconectar
+              </button>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-3">
-              <p className="text-[7px] font-black text-zinc-600 uppercase tracking-widest">Protocol Login</p>
-              <div id="google-login-btn"></div>
+            <div className="flex flex-col items-center gap-4">
+              <p className="text-[7px] font-black text-zinc-600 uppercase tracking-widest text-center">Protocolo de Login Seguro</p>
+              <div id="google-login-btn" className="w-full flex justify-center"></div>
             </div>
           )}
         </div>
@@ -504,7 +538,7 @@ export default function App() {
 
                 <div className="space-y-4">
                   <button onClick={() => handleDownload(selectedAsset)} className="w-full py-6 rounded-3xl bg-white text-black font-black uppercase text-[11px] shadow-2xl active:scale-95 hover:bg-zinc-200 transition-all flex items-center justify-center gap-3">
-                    <Icons.Download /> ADQUIRE FILE
+                    <Icons.Download /> ADQUIRIR FILE
                   </button>
                   <div className="grid grid-cols-2 gap-3">
                     <button onClick={() => handleLike(selectedAsset.id)} className={`py-6 rounded-2xl border border-white/5 font-black uppercase text-[9px] flex items-center justify-center gap-2 active:scale-95 transition-all ${selectedAsset.likes.includes(currentUser?.id || '') ? 'bg-blue-600/20 text-blue-400 border-blue-500/50' : 'bg-white/5'}`}>
