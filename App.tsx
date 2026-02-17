@@ -58,33 +58,33 @@ export default function App() {
     init();
   }, [syncRegistry]);
 
-  // Google Login Initialization
+  // Robust Google Login Initialization
   useEffect(() => {
-    const handleCredentialResponse = (response: any) => {
-      const payload = decodeJWT(response.credential);
-      if (payload) {
-        const user: User = {
-          id: payload.sub,
-          name: payload.name,
-          email: payload.email,
-          avatar: payload.picture,
-          joinedAt: Date.now()
-        };
-        setCurrentUser(user);
-        localStorage.setItem('ex_session', JSON.stringify(user));
-      }
-    };
+    if (currentUser) return;
 
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      if (window.google && !currentUser) {
+    let retryCount = 0;
+    const MAX_RETRIES = 10;
+
+    const renderGoogleButton = () => {
+      if (window.google?.accounts?.id) {
         window.google.accounts.id.initialize({
           client_id: "308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com",
-          callback: handleCredentialResponse,
+          callback: (response: any) => {
+            const payload = decodeJWT(response.credential);
+            if (payload) {
+              const user: User = {
+                id: payload.sub,
+                name: payload.name,
+                email: payload.email,
+                avatar: payload.picture,
+                joinedAt: Date.now()
+              };
+              setCurrentUser(user);
+              localStorage.setItem('ex_session', JSON.stringify(user));
+            }
+          },
         });
+
         const container = document.getElementById('google-login-btn');
         if (container) {
           window.google.accounts.id.renderButton(container, {
@@ -94,9 +94,23 @@ export default function App() {
             width: '240'
           });
         }
+      } else if (retryCount < MAX_RETRIES) {
+        retryCount++;
+        setTimeout(renderGoogleButton, 500);
       }
     };
-    document.head.appendChild(script);
+
+    // Check if script already exists
+    if (!document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = renderGoogleButton;
+      document.head.appendChild(script);
+    } else {
+      renderGoogleButton();
+    }
   }, [currentUser]);
 
   const handleLogout = () => {
@@ -144,8 +158,12 @@ export default function App() {
       
       setUploadProgress('Fazendo upload...');
 
+      // Criando ID ÚNICO e HUMANIZADO para o asset
+      const shortId = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const uniqueId = `EXC-${shortId}`;
+
       const newAsset: Asset = {
-        id: crypto.randomUUID(),
+        id: uniqueId,
         userId: currentUser.id,
         authorName: currentUser.name,
         authorAvatar: currentUser.avatar,
@@ -184,7 +202,8 @@ export default function App() {
     return list.filter(a => 
       a.title.toLowerCase().includes(q) || 
       a.description.toLowerCase().includes(q) ||
-      a.keywords?.some(k => k.toLowerCase().includes(q))
+      a.keywords?.some(k => k.toLowerCase().includes(q)) ||
+      a.id.toLowerCase().includes(q)
     );
   }, [assets, searchQuery, activeTab, currentUser]);
 
@@ -231,9 +250,9 @@ export default function App() {
               <button onClick={handleLogout} className="absolute inset-0 w-full h-full opacity-0 hover:opacity-100 bg-red-600/90 rounded-2xl flex items-center justify-center text-[10px] font-black uppercase transition-all z-10">Sair</button>
             </div>
           ) : (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 items-center justify-center">
               <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest text-center">Acesse sua conta</p>
-              <div id="google-login-btn"></div>
+              <div id="google-login-btn" className="w-full flex justify-center"></div>
             </div>
           )}
         </div>
@@ -241,25 +260,31 @@ export default function App() {
 
       <main className="flex-grow lg:ml-72 p-6 lg:p-16">
         <header className="mb-20 flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
-          <h2 className="text-6xl lg:text-8xl font-black italic tracking-tighter uppercase leading-none">{activeTab}</h2>
+          <div className="flex flex-col">
+             <h2 className="text-6xl lg:text-8xl font-black italic tracking-tighter uppercase leading-none">{activeTab}</h2>
+             <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.5em] mt-2">Roblox Asset Marketplace</p>
+          </div>
           <input 
             value={searchQuery} 
             onChange={e => setSearchQuery(e.target.value)} 
-            placeholder="BUSCAR..." 
+            placeholder="BUSCAR POR NOME OU ID..." 
             className="w-full md:w-auto bg-zinc-900 border border-white/5 rounded-2xl py-4 px-8 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-white/20" 
           />
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
           {filteredAssets.map(asset => (
-            <div key={asset.id} onClick={() => setSelectedAsset(asset)} className="premium-card group rounded-3xl overflow-hidden cursor-pointer border border-white/5 flex flex-col">
+            <div key={asset.id} onClick={() => setSelectedAsset(asset)} className="premium-card group rounded-3xl overflow-hidden cursor-pointer border border-white/5 flex flex-col h-full">
               <div className="aspect-video relative overflow-hidden bg-zinc-900">
                 <img src={asset.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={asset.title} />
+                <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[8px] font-black tracking-widest border border-white/10">
+                   {asset.id}
+                </div>
               </div>
-              <div className="p-6">
+              <div className="p-6 flex flex-col flex-grow">
                 <h3 className="text-xl font-black uppercase italic truncate mb-2">{asset.title}</h3>
-                <div className="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
-                  <span>{asset.category}</span>
+                <div className="mt-auto flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest pt-4">
+                  <span className="bg-white/5 px-3 py-1 rounded-lg">{asset.category}</span>
                   <div className="flex gap-4">
                     <span className="flex items-center gap-1"><Icons.Like filled={asset.likes?.includes(currentUser?.id || '')} /> {asset.likes?.length || 0}</span>
                     <span className="flex items-center gap-1"><Icons.Download /> {asset.downloadCount || 0}</span>
@@ -268,6 +293,11 @@ export default function App() {
               </div>
             </div>
           ))}
+          {filteredAssets.length === 0 && (
+            <div className="col-span-full py-20 text-center">
+              <p className="text-zinc-600 font-black uppercase tracking-widest text-xs">Nenhum asset encontrado.</p>
+            </div>
+          )}
         </div>
 
         {currentUser && (
@@ -324,10 +354,13 @@ export default function App() {
           <div className="absolute inset-0 bg-black/95 backdrop-blur-xl" onClick={() => setSelectedAsset(null)} />
           <div className="relative w-full max-w-6xl bg-[#080808] border border-white/10 rounded-[3rem] overflow-hidden flex flex-col lg:flex-row max-h-[90vh]">
             <div className="lg:w-2/3 p-12 overflow-y-auto custom-scrollbar">
-              <div className="aspect-video rounded-3xl overflow-hidden bg-black mb-12">
+              <div className="aspect-video rounded-3xl overflow-hidden bg-black mb-12 border border-white/5">
                 <video src={selectedAsset.videoUrl} autoPlay muted loop playsInline className="w-full h-full object-cover" />
               </div>
-              <h2 className="text-4xl font-black italic uppercase tracking-tighter mb-4">{selectedAsset.title}</h2>
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-4xl font-black italic uppercase tracking-tighter">{selectedAsset.title}</h2>
+                <span className="bg-white/5 px-4 py-2 rounded-xl text-[10px] font-black border border-white/10">ID: {selectedAsset.id}</span>
+              </div>
               <p className="text-zinc-500 mb-8 leading-relaxed whitespace-pre-wrap">{selectedAsset.description}</p>
               
               <div className="flex flex-wrap gap-2">
