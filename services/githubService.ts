@@ -66,7 +66,7 @@ export const githubStorage = {
     );
   },
 
-  async uploadAsset(asset: Asset, files: { asset: File, thumb: File, video: File }) {
+  async uploadAsset(asset: Asset, files: { asset: File, thumb: File, video: File }, onProgress?: (msg: string) => void) {
     const assetId = asset.id;
     const folderPath = `${BASE_PATH}/${assetId}`;
 
@@ -80,8 +80,13 @@ export const githubStorage = {
     const videoName = `preview.${videoExt}`;
     const assetName = `file.${assetExt}`;
 
+    if (onProgress) onProgress('Transmitindo Thumbnail...');
     await this.uploadToRepo(`${folderPath}/${thumbName}`, await toBase64(files.thumb), `Thumb: ${assetId}`);
+    
+    if (onProgress) onProgress('Transmitindo Showcase Vídeo...');
     await this.uploadToRepo(`${folderPath}/${videoName}`, await toBase64(files.video), `Video: ${assetId}`);
+    
+    if (onProgress) onProgress('Transmitindo Binário Roblox...');
     await this.uploadToRepo(`${folderPath}/${assetName}`, await toBase64(files.asset), `File: ${assetId}`);
 
     const metadata: Asset = {
@@ -91,9 +96,11 @@ export const githubStorage = {
       fileUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${folderPath}/${assetName}`
     };
 
+    if (onProgress) onProgress('Gerando Metadados...');
     const metaContent = btoa(unescape(encodeURIComponent(JSON.stringify(metadata, null, 2))));
     await this.uploadToRepo(`${folderPath}/metadata.json`, metaContent, `Meta: ${assetId}`);
     
+    if (onProgress) onProgress('Sincronizando Registro Global...');
     await this.updateRegistry(metadata);
     return metadata;
   },
@@ -148,6 +155,13 @@ export const githubStorage = {
     return this.updateAssetInRegistry(assetId, (current) => ({
       ...current,
       downloadCount: (current.downloadCount || 0) + 1
+    }));
+  },
+
+  async incrementReport(assetId: string) {
+    return this.updateAssetInRegistry(assetId, (current) => ({
+      ...current,
+      reports: (current.reports || 0) + 1
     }));
   },
 
