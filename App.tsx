@@ -15,9 +15,11 @@ const ADMIN_EMAILS = ['kaioadrik08@gmail.com'];
 const ALLOWED_ROBLOX_EXTENSIONS = ['.rbxm', '.rbxl', '.rbxmx'];
 
 // Componente de Card com Hover Inteligente (1.2s)
-const AssetCard = ({ asset, currentUser, onClick }: { asset: Asset, currentUser: User | null, onClick: () => void }) => {
+// Added React.FC type to explicitly handle React-specific props like 'key' and ensured correct null handling for currentUser
+const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () => void }> = ({ asset, currentUser, onClick }) => {
   const [showVideo, setShowVideo] = useState(false);
   const hoverTimer = useRef<any>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const handleMouseEnter = () => {
     hoverTimer.current = setTimeout(() => setShowVideo(true), 1200);
@@ -27,6 +29,12 @@ const AssetCard = ({ asset, currentUser, onClick }: { asset: Asset, currentUser:
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
     setShowVideo(false);
   };
+
+  useEffect(() => {
+    if (showVideo && videoRef.current) {
+      videoRef.current.play().catch(() => {});
+    }
+  }, [showVideo]);
 
   return (
     <div 
@@ -60,7 +68,15 @@ const AssetCard = ({ asset, currentUser, onClick }: { asset: Asset, currentUser:
         />
 
         {showVideo && asset.videoUrl && (
-          <video src={`${asset.videoUrl}?t=${asset.timestamp}`} autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover animate-in fade-in duration-500" />
+          <video 
+            ref={videoRef}
+            src={`${asset.videoUrl}?t=${asset.timestamp}`} 
+            autoPlay 
+            muted 
+            loop 
+            playsInline 
+            className="absolute inset-0 w-full h-full object-cover animate-in fade-in duration-500" 
+          />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
@@ -99,6 +115,7 @@ export default function App() {
   const [uploadStep, setUploadStep] = useState(0);
   const [commentText, setCommentText] = useState('');
   const [isPostingComment, setIsPostingComment] = useState(false);
+  const detailVideoRef = useRef<HTMLVideoElement>(null);
 
   const isAdmin = (user: User | null) => user ? ADMIN_EMAILS.includes(user.email) : false;
 
@@ -125,7 +142,14 @@ export default function App() {
     init();
   }, [syncRegistry]);
 
-  // Carregamento do Script do Google e Renderização do Botão
+  // Garantir que o vídeo do modal de detalhes continue tocando após re-renders
+  useEffect(() => {
+    if (selectedAsset && detailVideoRef.current) {
+      detailVideoRef.current.play().catch(() => {});
+    }
+  }, [selectedAsset]);
+
+  // Carregamento do Script do Google e Renderização do Botão de Login
   useEffect(() => {
     if (currentUser) return;
     
@@ -139,7 +163,7 @@ export default function App() {
       document.head.appendChild(script);
     }
 
-    let interval = setInterval(() => {
+    const timer = setInterval(() => {
       const btn = document.getElementById('google-login-btn');
       if (window.google?.accounts?.id && btn) {
         window.google.accounts.id.initialize({
@@ -162,11 +186,11 @@ export default function App() {
           shape: 'pill',
           width: btn.offsetWidth
         });
-        clearInterval(interval);
+        clearInterval(timer);
       }
-    }, 500);
+    }, 1000);
     
-    return () => clearInterval(interval);
+    return () => clearInterval(timer);
   }, [currentUser]);
 
   const handleLogout = () => {
@@ -457,7 +481,15 @@ export default function App() {
             {/* Left: Content */}
             <div className="lg:w-3/5 p-10 overflow-y-auto custom-scrollbar border-r border-white/5">
               <div className="aspect-video rounded-[1.5rem] overflow-hidden bg-black mb-10 border border-white/10 shadow-2xl relative">
-                <video src={`${selectedAsset.videoUrl}?t=${selectedAsset.timestamp}`} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+                <video 
+                  ref={detailVideoRef}
+                  src={`${selectedAsset.videoUrl}?t=${selectedAsset.timestamp}`} 
+                  autoPlay 
+                  muted 
+                  loop 
+                  playsInline 
+                  className="w-full h-full object-cover" 
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
               </div>
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -515,7 +547,7 @@ export default function App() {
             <div className="lg:w-2/5 p-10 flex flex-col justify-between bg-black/40">
               <div className="space-y-8">
                 <div className="p-6 bg-white/[0.04] rounded-[2rem] border border-white/5 flex items-center gap-4 cursor-pointer hover:bg-white/10 transition-all shadow-xl group" onClick={() => openUserProfile(selectedAsset.userId)}>
-                  <img src={selectedAsset.authorAvatar} className="w-14 h-14 rounded-xl border border-white/10 grayscale group-hover:grayscale-0 transition-all" />
+                  <img src={selectedAsset.authorAvatar} className="w-14 h-14 rounded-xl border border-white/10 grayscale group-hover:grayscale-0 transition-all" referrerPolicy="no-referrer" />
                   <div className="min-w-0">
                     <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Provider</p>
                     <p className="text-[14px] font-black uppercase flex items-center gap-2 truncate">
