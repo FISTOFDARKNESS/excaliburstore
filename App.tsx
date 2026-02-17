@@ -286,9 +286,6 @@ export default function App() {
     }
   };
 
-  /**
-   * Fix: Implement handleDelete to allow admins to permanently remove assets.
-   */
   const handleDelete = async (assetId: string) => {
     if (!isAdmin(currentUser)) return;
     if (!confirm("CONFIRMAR PURGA: Esta ação removerá permanentemente o asset do repositório. Continuar?")) return;
@@ -325,6 +322,59 @@ export default function App() {
       setNameError('');
     }
     setLoading(false);
+  };
+
+  const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    const formData = new FormData(e.currentTarget);
+    const assetFile = formData.get('file') as File;
+    const thumbFile = formData.get('thumb') as File;
+    const videoFile = formData.get('video') as File;
+
+    if (!assetFile || !thumbFile || !videoFile) {
+        return alert("PROTOCOL ERROR: Todos os arquivos (Asset, Thumb, Video) são obrigatórios.");
+    }
+
+    if (!ALLOWED_ROBLOX_EXTENSIONS.some(ext => assetFile.name.toLowerCase().endsWith(ext))) {
+      return alert("BLOQUEADO: Apenas .rbxm, .rbxl ou .rbxmx.");
+    }
+    
+    setIsUploading(true);
+    setUploadStep(1);
+    setUploadProgress("Protocolo IA: Gerando Keywords Semânticas...");
+    
+    try {
+      const title = formData.get('title') as string;
+      const desc = formData.get('desc') as string;
+      const keywords = await generateKeywords(title, desc);
+      
+      setUploadStep(2);
+      const asset: Asset = {
+        id: `EXC-${Date.now().toString(36).toUpperCase()}`,
+        userId: currentUser.id, authorName: currentUser.name, authorAvatar: currentUser.avatar,
+        title, description: desc, originalFileName: assetFile.name,
+        category: formData.get('category') as Category,
+        fileType: assetFile.name.slice(assetFile.name.lastIndexOf('.')) as RobloxFileType,
+        thumbnailUrl: '', fileUrl: '', downloadCount: 0, likes: [], reports: 0, credits: formData.get('credits') as string,
+        comments: [], timestamp: Date.now(), keywords,
+        authorVerified: currentUser.isVerified
+      };
+
+      await githubStorage.uploadAsset(asset, { asset: assetFile, thumb: thumbFile, video: videoFile }, (msg) => {
+        setUploadProgress(msg);
+        setUploadStep(prev => Math.min(prev + 1, 6));
+      });
+
+      setIsUploading(false);
+      setShowUpload(false);
+      setUploadStep(0);
+      syncRegistry();
+      alert("TRANSMISSÃO COMPLETA: O asset já está disponível no marketplace.");
+    } catch (err) {
+      alert("ERRO NA TRANSMISSÃO: Verifique a conexão e tente novamente.");
+      setIsUploading(false);
+    }
   };
 
   const filteredAssets = useMemo(() => {
@@ -567,7 +617,128 @@ export default function App() {
         )}
       </main>
 
-      {/* Modal Profile / Detail Views mantidos com funcionalidade total e novos estilos Tailwind */}
+      {/* MODAL UPLOAD MELHORADO */}
+      {showUpload && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl" onClick={() => !isUploading && setShowUpload(false)} />
+          <div className="relative w-full max-w-4xl bg-brand-black border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(255,255,255,0.05)] animate-fade-in flex flex-col max-h-[90vh]">
+            
+            <header className="p-8 border-b border-white/5 flex justify-between items-center bg-zinc-950/50">
+              <div>
+                <h2 className="text-2xl font-black italic uppercase tracking-tighter">Transmission Protocol</h2>
+                <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Sincronização de Assets com o Repositório Excalibur</p>
+              </div>
+              {!isUploading && (
+                <button onClick={() => setShowUpload(false)} className="p-2 hover:bg-white/5 rounded-full text-zinc-500 hover:text-white transition-colors">
+                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              )}
+            </header>
+
+            <form onSubmit={handleUpload} className="p-8 overflow-y-auto custom-scrollbar flex-grow space-y-10">
+              
+              {/* Step 1: Informações Básicas */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <div>
+                    <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2 block italic">Identificação do Asset</label>
+                    <input required name="title" placeholder="EX: ULTRA MODERN HOUSE SYSTEM" className="w-full bg-zinc-950 border border-white/10 rounded-xl py-4 px-6 text-[11px] font-black uppercase outline-none focus:border-white/30 transition-all placeholder:text-zinc-800" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2 block italic">Descrição Técnica</label>
+                    <textarea required name="desc" placeholder="DETALHE O FUNCIONAMENTO DO SEU ASSET..." className="w-full bg-zinc-950 border border-white/10 rounded-xl py-4 px-6 text-[11px] font-black uppercase outline-none focus:border-white/30 transition-all placeholder:text-zinc-800 h-32 resize-none" />
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2 block italic">Setor / Categoria</label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {Object.values(Category).map(cat => (
+                            <label key={cat} className="cursor-pointer">
+                                <input type="radio" name="category" value={cat} defaultChecked={cat === Category.MODEL} className="peer hidden" />
+                                <div className="p-3 border border-white/5 bg-zinc-950 rounded-xl text-[9px] font-black uppercase text-center text-zinc-600 peer-checked:bg-white peer-checked:text-black transition-all peer-checked:border-white">{cat}</div>
+                            </label>
+                        ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2 block italic">Créditos de Autoria</label>
+                    <input name="credits" placeholder="EX: @ROBLOX_DEV / ASSET STORE" className="w-full bg-zinc-950 border border-white/10 rounded-xl py-4 px-6 text-[11px] font-black uppercase outline-none focus:border-white/30 transition-all placeholder:text-zinc-800" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 2: Arquivos de Mídia */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                {/* File .rbxm */}
+                <div className="group relative">
+                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2 block italic">Protocolo File (.rbxm/.rbxl)</label>
+                  <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-white/10 rounded-3xl bg-zinc-950/50 hover:bg-white/[0.02] hover:border-white/20 transition-all cursor-pointer">
+                    <Icons.Script className="w-8 h-8 text-zinc-700 group-hover:text-white transition-colors mb-3" />
+                    <span className="text-[9px] font-black uppercase text-zinc-600">Click to Sync File</span>
+                    <input required type="file" name="file" accept=".rbxm,.rbxl,.rbxmx" className="hidden" />
+                  </label>
+                </div>
+
+                {/* Thumbnail */}
+                <div className="group relative">
+                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2 block italic">Static Thumbnail (PNG/JPG)</label>
+                  <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-white/10 rounded-3xl bg-zinc-950/50 hover:bg-white/[0.02] hover:border-white/20 transition-all cursor-pointer">
+                    <svg className="w-8 h-8 text-zinc-700 group-hover:text-white transition-colors mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <span className="text-[9px] font-black uppercase text-zinc-600">Visual Interface</span>
+                    <input required type="file" name="thumb" accept="image/*" className="hidden" />
+                  </label>
+                </div>
+
+                {/* Video */}
+                <div className="group relative">
+                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2 block italic">Dynamic Preview (MP4)</label>
+                  <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-white/10 rounded-3xl bg-zinc-950/50 hover:bg-white/[0.02] hover:border-white/20 transition-all cursor-pointer">
+                    <svg className="w-8 h-8 text-zinc-700 group-hover:text-white transition-colors mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                    <span className="text-[9px] font-black uppercase text-zinc-600">Showcase Stream</span>
+                    <input required type="file" name="video" accept="video/mp4" className="hidden" />
+                  </label>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-white/5 flex justify-end gap-4">
+                 {!isUploading && (
+                   <>
+                    <button type="button" onClick={() => setShowUpload(false)} className="px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-white transition-colors">Abort</button>
+                    <button type="submit" className="px-12 py-5 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl hover:bg-zinc-200 transition-all active:scale-95">Inicia Transmissão</button>
+                   </>
+                 )}
+              </div>
+            </form>
+
+            {/* Overlay de Progresso de Transmissão */}
+            {isUploading && (
+              <div className="absolute inset-0 bg-black/95 flex flex-col items-center justify-center p-12 z-50 text-center animate-fade-in">
+                <div className="w-24 h-24 mb-10 relative">
+                   <div className="absolute inset-0 border-4 border-white/5 rounded-full" />
+                   <div className="absolute inset-0 border-4 border-white rounded-full border-t-transparent animate-spin" />
+                   <div className="absolute inset-0 flex items-center justify-center font-black italic text-xl">
+                      {Math.round((uploadStep / 6) * 100)}%
+                   </div>
+                </div>
+                <h3 className="text-2xl font-black italic uppercase mb-4 tracking-tighter">Sincronizando com o Mainframe</h3>
+                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.4em] max-w-sm mb-12">{uploadProgress}</p>
+                
+                {/* Visualizer do Step */}
+                <div className="flex gap-2 w-full max-w-xs h-1">
+                   {[1,2,3,4,5,6].map(i => (
+                     <div key={i} className={`flex-grow rounded-full transition-all duration-700 ${i <= uploadStep ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]' : 'bg-white/10'}`} />
+                   ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Profile / Detail Views mantidos */}
       {viewedUser && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/95 backdrop-blur-xl" onClick={() => setViewedUser(null)} />
