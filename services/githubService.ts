@@ -4,6 +4,7 @@ import { Asset, Comment } from '../types';
 const GITHUB_TOKEN = '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';
 const OWNER = 'FISTOFDARKNESS';
 const REPO = 'excaliburstore';
+const BRANCH = 'main';
 const BASE_PATH = 'Marketplace/Assets';
 const REGISTRY_PATH = 'Marketplace/registry.json';
 
@@ -44,7 +45,6 @@ export const githubStorage = {
       });
       if (!res.ok) return { assets: [] };
       const json = await res.json();
-      // Decode with UTF-8 support
       const content = decodeURIComponent(escape(atob(json.content)));
       return { 
         assets: JSON.parse(content), 
@@ -58,7 +58,6 @@ export const githubStorage = {
   async updateRegistry(newAsset: Asset) {
     const { assets, sha } = await this.getRegistry();
     const updatedAssets = [newAsset, ...assets.filter(a => a.id !== newAsset.id)];
-    // Encode with UTF-8 support
     const content = btoa(unescape(encodeURIComponent(JSON.stringify(updatedAssets, null, 2))));
     await this.uploadToRepo(
       REGISTRY_PATH,
@@ -82,25 +81,22 @@ export const githubStorage = {
     const videoName = `preview.${videoExt}`;
     const assetName = `file.${assetExt}`;
 
-    // Upload binaries com as extensões corretas
     await this.uploadToRepo(`${folderPath}/${thumbName}`, await toBase64(files.thumb), `Thumb: ${assetId}`);
     await this.uploadToRepo(`${folderPath}/${videoName}`, await toBase64(files.video), `Video: ${assetId}`);
     await this.uploadToRepo(`${folderPath}/${assetName}`, await toBase64(files.asset), `File: ${assetId}`);
 
+    // URLs usando o formato raw/refs/heads/main para garantir carregamento imediato
     const metadata: Asset = {
       ...asset,
-      thumbnailUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${folderPath}/${thumbName}`,
-      videoUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${folderPath}/${videoName}`,
-      fileUrl: `https://github.com/${OWNER}/${REPO}/raw/main/${folderPath}/${assetName}`
+      thumbnailUrl: `https://github.com/${OWNER}/${REPO}/raw/refs/heads/${BRANCH}/${folderPath}/${thumbName}`,
+      videoUrl: `https://github.com/${OWNER}/${REPO}/raw/refs/heads/${BRANCH}/${folderPath}/${videoName}`,
+      fileUrl: `https://github.com/${OWNER}/${REPO}/raw/refs/heads/${BRANCH}/${folderPath}/${assetName}`
     };
 
-    // Save individual metadata
     const metaContent = btoa(unescape(encodeURIComponent(JSON.stringify(metadata, null, 2))));
     await this.uploadToRepo(`${folderPath}/metadata.json`, metaContent, `Meta: ${assetId}`);
     
-    // Update global registry
     await this.updateRegistry(metadata);
-    
     return metadata;
   },
 
@@ -114,7 +110,7 @@ export const githubStorage = {
       body: JSON.stringify({
         message,
         content,
-        branch: 'main',
+        branch: BRANCH,
         ...(sha ? { sha } : {})
       })
     });
@@ -135,12 +131,7 @@ export const githubStorage = {
     assets[index] = updated;
 
     const content = btoa(unescape(encodeURIComponent(JSON.stringify(assets, null, 2))));
-    await this.uploadToRepo(
-      REGISTRY_PATH,
-      content,
-      `Sync Registry: ${assetId}`,
-      sha
-    );
+    await this.uploadToRepo(REGISTRY_PATH, content, `Sync Registry: ${assetId}`, sha);
     return updated;
   },
 
@@ -159,13 +150,6 @@ export const githubStorage = {
     return this.updateAssetInRegistry(assetId, (current) => ({
       ...current,
       downloadCount: (current.downloadCount || 0) + 1
-    }));
-  },
-
-  async addComment(assetId: string, comment: Comment) {
-    return this.updateAssetInRegistry(assetId, (current) => ({
-      ...current,
-      comments: [comment, ...(current.comments || [])]
     }));
   },
 
