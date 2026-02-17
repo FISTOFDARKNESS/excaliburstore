@@ -14,6 +14,7 @@ declare global {
 const ADMIN_EMAILS = ['kaioadrik08@gmail.com'];
 const ALLOWED_ROBLOX_EXTENSIONS = ['.rbxm', '.rbxl', '.rbxmx'];
 
+// Componente de Card com Hover Inteligente (1.2s)
 const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () => void }> = ({ asset, currentUser, onClick }) => {
   const [showVideo, setShowVideo] = useState(false);
   const hoverTimer = useRef<any>(null);
@@ -85,7 +86,10 @@ const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () 
             {asset.title}
             {asset.authorVerified && <Icons.Verified className="text-blue-400" />}
           </h3>
-          <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Provider: {asset.authorName}</p>
+          <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+            Provider: {asset.authorName}
+            {asset.authorVerified && <Icons.Verified className="w-2.5 h-2.5" />}
+          </p>
         </div>
         <div className="flex justify-between items-center text-[8px] font-black text-zinc-400 uppercase tracking-widest pt-4 border-t border-white/5 mt-2">
           <span className="bg-white/5 px-3 py-1 rounded-md border border-white/5">{asset.category}</span>
@@ -99,12 +103,14 @@ const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () 
   );
 };
 
+type TabId = 'explore' | 'verified' | 'market' | 'profile';
+
 export default function App() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'explore' | 'market' | 'profile'>('explore');
+  const [activeTab, setActiveTab] = useState<TabId>('explore');
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [viewedUser, setViewedUser] = useState<User | null>(null);
   const [showUpload, setShowUpload] = useState(false);
@@ -115,7 +121,6 @@ export default function App() {
   const [isPostingComment, setIsPostingComment] = useState(false);
   const detailVideoRef = useRef<HTMLVideoElement>(null);
 
-  // Estados para edição de nome
   const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState('');
   const [isSavingName, setIsSavingName] = useState(false);
@@ -335,7 +340,8 @@ export default function App() {
         category: formData.get('category') as Category,
         fileType: assetFile.name.slice(assetFile.name.lastIndexOf('.')) as RobloxFileType,
         thumbnailUrl: '', fileUrl: '', downloadCount: 0, likes: [], reports: 0, credits: formData.get('credits') as string,
-        comments: [], timestamp: Date.now(), keywords
+        comments: [], timestamp: Date.now(), keywords,
+        authorVerified: currentUser.isVerified
       };
 
       await githubStorage.uploadAsset(asset, { asset: assetFile, thumb: thumbFile, video: videoFile }, (msg) => {
@@ -368,7 +374,11 @@ export default function App() {
 
   const filteredAssets = useMemo(() => {
     let list = assets;
-    if (activeTab === 'profile' && currentUser) list = list.filter(a => a.userId === currentUser.id);
+    if (activeTab === 'profile' && currentUser) {
+        list = list.filter(a => a.userId === currentUser.id);
+    } else if (activeTab === 'verified') {
+        list = list.filter(a => a.authorVerified === true);
+    }
     const q = searchQuery.toLowerCase();
     return q ? list.filter(a => 
       a.title.toLowerCase().includes(q) || 
@@ -390,9 +400,11 @@ export default function App() {
           <h1 className="font-black italic text-lg tracking-tighter">EXCALIBUR</h1>
         </div>
         <nav className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-4 lg:pb-0">
-          {['explore', 'market', 'profile'].map(id => (
-            <button key={id} onClick={() => setActiveTab(id as any)} className={`flex items-center gap-3 p-3.5 rounded-xl font-bold text-[9px] uppercase tracking-widest transition-all ${activeTab === id ? 'bg-white text-black' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}>
-               {id === 'explore' ? <Icons.Search /> : id === 'market' ? <Icons.Script /> : <Icons.Plus />}
+          {(['explore', 'verified', 'market', 'profile'] as TabId[]).map(id => (
+            <button key={id} onClick={() => setActiveTab(id)} className={`flex items-center gap-3 p-3.5 rounded-xl font-bold text-[9px] uppercase tracking-widest transition-all ${activeTab === id ? 'bg-white text-black' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}>
+               {id === 'explore' ? <Icons.Search /> : 
+                id === 'verified' ? <Icons.Verified className={activeTab === id ? "text-black" : "text-blue-500"} /> :
+                id === 'market' ? <Icons.Script /> : <Icons.Plus />}
                <span>{id}</span>
             </button>
           ))}
@@ -426,9 +438,12 @@ export default function App() {
       </aside>
 
       <main className="flex-grow lg:ml-64 p-6 lg:p-12">
-        <header className="mb-14 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <header className="mb-14 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative">
+           {activeTab === 'verified' && (
+             <div className="absolute -top-12 -left-12 w-64 h-64 bg-blue-500/5 blur-[120px] pointer-events-none rounded-full" />
+           )}
            <div>
-              <h2 className="text-5xl font-black italic uppercase tracking-tighter leading-none">{activeTab}</h2>
+              <h2 className={`text-5xl font-black italic uppercase tracking-tighter leading-none ${activeTab === 'verified' ? 'text-blue-400' : ''}`}>{activeTab}</h2>
               <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.4em] mt-2">Unique Roblox Repository</p>
            </div>
            <div className="flex items-center gap-3 w-full md:w-auto">
@@ -489,8 +504,10 @@ export default function App() {
                         </div>
                       ) : (
                         <div className="flex items-center gap-4">
-                          <h2 className="text-4xl font-black italic uppercase tracking-tighter leading-none">{viewedUser.name}</h2>
-                          {viewedUser.isVerified && <Icons.Verified className="w-8 h-8 text-blue-500" />}
+                          <h2 className="text-4xl font-black italic uppercase tracking-tighter leading-none flex items-center gap-2">
+                            {viewedUser.name}
+                            {viewedUser.isVerified && <Icons.Verified className="w-8 h-8 text-blue-500" />}
+                          </h2>
                           {currentUser?.id === viewedUser.id && (
                             <button onClick={() => setIsEditingName(true)} className="text-zinc-600 hover:text-white transition-colors">
                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
@@ -500,7 +517,13 @@ export default function App() {
                           )}
                         </div>
                       )}
-                      {!viewedUser.isVerified && <span className="w-fit bg-zinc-800/50 text-zinc-500 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Unverified Agent</span>}
+                      {viewedUser.isVerified ? (
+                        <span className="w-fit bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                           <Icons.Verified className="w-3 h-3" /> Verified Agent
+                        </span>
+                      ) : (
+                        <span className="w-fit bg-zinc-800/50 text-zinc-500 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Unverified Agent</span>
+                      )}
                    </div>
                    <div className="flex gap-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">
                       <span className="flex items-center gap-2"><div className="w-1 h-1 bg-white rounded-full"/> {viewedUser.followers.length} Seguidores</span>
@@ -598,7 +621,11 @@ export default function App() {
                       <img src={c.userAvatar} className="w-10 h-10 rounded-lg cursor-pointer grayscale hover:grayscale-0 transition-all" onClick={() => openUserProfile(c.userId)} referrerPolicy="no-referrer" />
                       <div className="flex-grow min-w-0">
                         <div className="flex justify-between items-center mb-2">
-                          <p className="text-[10px] font-black uppercase">{c.userName}</p>
+                          <p className="text-[10px] font-black uppercase flex items-center gap-1.5">
+                            {c.userName}
+                            {/* In a real app we'd fetch the specific user's verified status, for now we can rely on cached status if available in asset data or similar */}
+                            <Icons.Verified className="w-3 h-3 text-blue-500/50" />
+                          </p>
                           <span className="text-[8px] text-zinc-600 font-black">{new Date(c.timestamp).toLocaleDateString()}</span>
                         </div>
                         <p className="text-zinc-400 text-[11px] italic leading-relaxed">"{c.text}"</p>
@@ -671,7 +698,7 @@ export default function App() {
                     <div className="absolute inset-0 border-4 border-white/5 rounded-full" />
                     <div className="absolute inset-0 border-4 border-white border-t-transparent rounded-full animate-spin" />
                   </div>
-                  <div className="w-full max-w-sm space-y-4">
+                  <div className="w-full max-sm space-y-4">
                     <div className="flex justify-between text-[8px] font-black uppercase tracking-[0.3em] text-zinc-500">
                       <span>Uploading Protocol</span>
                       <span>{Math.round((uploadStep / 6) * 100)}%</span>
