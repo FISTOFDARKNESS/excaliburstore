@@ -477,7 +477,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#050505] text-white flex flex-col lg:flex-row">
       {/* Sidebar Navigation */}
-      <aside className="w-full lg:w-64 border-r border-white/5 flex flex-col p-6 lg:fixed h-auto lg:h-full z-50 bg-[#050505] shrink-0">
+      
+     <aside className="w-full lg:w-64 border-r border-white/5 flex flex-col p-6 lg:fixed h-auto lg:h-full z-50 bg-[#050505] shrink-0 overflow-y-auto">
+
         <div className="flex items-center gap-3 mb-12">
           <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center rotate-3"><Icons.Model className="w-5 h-5 text-black" /></div>
           <h1 className="font-black italic text-lg tracking-tighter">EXCALIBUR</h1>
