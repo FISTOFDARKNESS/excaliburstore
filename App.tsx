@@ -170,7 +170,7 @@ export default function App() {
   useEffect(() => {
     const init = async () => {
       await syncRegistry();
-      const session = localStorage.getItem('ex_session_v2');
+      const session = localStorage.getItem('ex_session_v3');
       if (session) {
         try {
           const u = JSON.parse(session);
@@ -178,13 +178,13 @@ export default function App() {
           if (fresh) {
             if (fresh.user.isBanned) {
                 alert("ACESSO NEGADO: Sua conta foi suspensa por violação das diretrizes.");
-                localStorage.removeItem('ex_session_v2');
+                localStorage.removeItem('ex_session_v3');
                 window.location.reload();
             } else {
                 setCurrentUser(fresh.user);
             }
           }
-        } catch { localStorage.removeItem('ex_session_v2'); }
+        } catch { localStorage.removeItem('ex_session_v3'); }
       }
       setLoading(false);
     };
@@ -238,7 +238,7 @@ export default function App() {
             }
 
             setCurrentUser(user);
-            localStorage.setItem('ex_session_v2', JSON.stringify(user));
+            localStorage.setItem('ex_session_v3', JSON.stringify(user));
           },
         });
         window.google.accounts.id.renderButton(btn, { 
@@ -257,7 +257,7 @@ export default function App() {
   const handleLogout = () => {
     if (confirm("Deseja encerrar a sessão atual?")) {
       setCurrentUser(null);
-      localStorage.removeItem('ex_session_v2');
+      localStorage.removeItem('ex_session_v3');
       window.location.reload();
     }
   };
@@ -274,7 +274,7 @@ export default function App() {
     try {
       const updated = await githubStorage.changeUsername(currentUser.id, newName.trim());
       setCurrentUser(updated);
-      localStorage.setItem('ex_session_v2', JSON.stringify(updated));
+      localStorage.setItem('ex_session_v3', JSON.stringify(updated));
       setIsEditingName(false);
       if (viewedUser?.id === currentUser.id) setViewedUser(updated);
       alert("Identidade Reconfigurada com Sucesso.");
