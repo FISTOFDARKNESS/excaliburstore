@@ -124,12 +124,12 @@ export const githubStorage = {
     const newUser: User = {
       id: user.id,
       name: existing?.user.name || finalName,
+      isAdmin: isAdminUser,
       email: email,
       avatar: existing?.user.avatar || user.avatar || "https://lh3.googleusercontent.com/a/ACg8ocIG6atjZk3j17lrPesukyA0RGHDlAQTPSSTRUEMRsDFdRIhXv4=s96-c",
       joinedAt: existing?.user.joinedAt || (user.id === "108578027243443196278" ? 1771340403300 : Date.now()),
       isVerified: existing?.user.isVerified || false,
       isBanned: existing?.user.isBanned || false,
-      isAdmin: isAdminUser,
       followers: existing?.user.followers || [],
       following: existing?.user.following || []
     };
