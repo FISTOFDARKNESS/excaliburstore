@@ -40,7 +40,7 @@ export const githubStorage = {
 
   async getRegistry(): Promise<{ assets: Asset[], sha?: string }> {
     try {
-      const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${REGISTRY_PATH}`, {
+      const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${REGISTRY_PATH}?t=${Date.now()}`, {
         headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
       });
       if (!res.ok) return { assets: [] };
@@ -85,11 +85,11 @@ export const githubStorage = {
     await this.uploadToRepo(`${folderPath}/${videoName}`, await toBase64(files.video), `Video: ${assetId}`);
     await this.uploadToRepo(`${folderPath}/${assetName}`, await toBase64(files.asset), `File: ${assetId}`);
 
-    // URLs usando o formato raw/refs/heads/main para garantir carregamento imediato
+    // Domínio oficial raw.githubusercontent.com é mais estável para mídias
     const metadata: Asset = {
       ...asset,
-      thumbnailUrl: `https://github.com/${OWNER}/${REPO}/raw/refs/heads/${BRANCH}/${folderPath}/${thumbName}`,
-      videoUrl: `https://github.com/${OWNER}/${REPO}/raw/refs/heads/${BRANCH}/${folderPath}/${videoName}`,
+      thumbnailUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${folderPath}/${thumbName}`,
+      videoUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${folderPath}/${videoName}`,
       fileUrl: `https://github.com/${OWNER}/${REPO}/raw/refs/heads/${BRANCH}/${folderPath}/${assetName}`
     };
 

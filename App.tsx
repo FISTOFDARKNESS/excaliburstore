@@ -136,12 +136,12 @@ export default function App() {
     const videoFile = formData.get('video') as File;
     if (!assetFile || !thumbFile || !videoFile) return alert("Todos os arquivos são obrigatórios.");
     setIsUploading(true);
-    setUploadProgress('IA: Gerando metadados...');
+    setUploadProgress('IA: Analisando conteúdo...');
     try {
       const title = formData.get('title') as string;
       const desc = formData.get('desc') as string;
       const keywords = await generateKeywords(title, desc);
-      setUploadProgress('Sincronizando arquivos...');
+      setUploadProgress('Sincronizando com GitHub...');
       const timestamp = Date.now().toString(36).toUpperCase();
       const randomStr = Math.random().toString(36).substring(2, 5).toUpperCase();
       const uniqueId = `EXC-${timestamp}-${randomStr}`;
@@ -174,7 +174,7 @@ export default function App() {
 
   if (loading) return (
     <div className="h-screen w-full flex items-center justify-center bg-black">
-      <div className="text-white font-black text-xs uppercase tracking-[1em] animate-pulse">EXCALIBUR // BOOTING</div>
+      <div className="text-white font-black text-[10px] uppercase tracking-[1.5em] animate-pulse">EXCALIBUR OS // BOOTING</div>
     </div>
   );
 
@@ -200,11 +200,11 @@ export default function App() {
                 <img src={currentUser.avatar} className="w-8 h-8 rounded-lg grayscale group-hover:grayscale-0 transition-all shadow-md" referrerPolicy="no-referrer" />
                 <div className="min-w-0"><p className="text-[10px] font-black truncate">{currentUser.name}</p></div>
               </div>
-              <button onClick={handleLogout} className="absolute inset-0 w-full h-full opacity-0 hover:opacity-100 bg-red-600/90 rounded-2xl flex items-center justify-center text-[10px] font-black uppercase transition-all z-10 shadow-lg">Sair</button>
+              <button onClick={handleLogout} className="absolute inset-0 w-full h-full opacity-0 hover:opacity-100 bg-red-600/90 rounded-2xl flex items-center justify-center text-[10px] font-black uppercase transition-all z-10 shadow-lg">Desconectar</button>
             </div>
           ) : (
             <div className="flex flex-col gap-4 items-center justify-center min-h-[140px]">
-              <p className="text-[8px] font-black text-zinc-600 uppercase tracking-[0.4em] text-center">Auth Required</p>
+              <p className="text-[8px] font-black text-zinc-600 uppercase tracking-[0.4em] text-center">Protocolo de Login</p>
               <div id="google-login-btn" className="w-full flex justify-center"></div>
             </div>
           )}
@@ -215,31 +215,45 @@ export default function App() {
         <header className="mb-20 flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
           <div className="flex flex-col">
              <h2 className="text-6xl lg:text-8xl font-black italic tracking-tighter uppercase leading-none">{activeTab}</h2>
-             <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.5em] mt-2">Roblox File Repository</p>
+             <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.5em] mt-2">Unique Roblox Repository</p>
           </div>
-          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="BUSCAR POR ID OU TERMO..." className="w-full md:w-auto bg-zinc-900 border border-white/5 rounded-2xl py-4 px-8 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-white/20 transition-colors" />
+          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="BUSCAR POR ID OU PROTOCOLO..." className="w-full md:w-auto bg-zinc-900 border border-white/5 rounded-2xl py-4 px-8 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-white/20 transition-colors" />
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
           {filteredAssets.map(asset => (
             <div key={asset.id} onClick={() => setSelectedAsset(asset)} className="premium-card group rounded-[2.5rem] overflow-hidden cursor-pointer border border-white/5 flex flex-col h-[460px] relative">
-              {/* Media Container - Ajustado para evitar sobreposição de texto */}
               <div className="h-[280px] w-full relative overflow-hidden bg-zinc-900 flex items-center justify-center">
-                {asset.thumbnailUrl ? (
-                  <img src={asset.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={asset.title} 
-                    onError={(e) => { (e.target as any).src = 'https://placehold.co/600x400/111/fff?text=Carregando...'; }} />
-                ) : (
-                  <div className="animate-pulse bg-zinc-800 w-full h-full" />
-                )}
-                <div className="absolute top-6 left-6 bg-black/80 backdrop-blur-md px-4 py-2 rounded-xl text-[8px] font-black tracking-widest border border-white/10 uppercase shadow-xl z-10">
+                <div className="absolute top-6 left-6 bg-black/80 backdrop-blur-md px-4 py-2 rounded-xl text-[8px] font-black tracking-widest border border-white/10 uppercase shadow-xl z-20">
                    ID: {asset.id.split('-').pop()}
                 </div>
+                {asset.thumbnailUrl ? (
+                  <img 
+                    src={`${asset.thumbnailUrl}?t=${asset.timestamp}`} 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                    alt={asset.title}
+                    onLoad={(e) => (e.currentTarget.style.opacity = '1')}
+                    onError={(e) => {
+                      // Se a imagem falhar (provavelmente 404 temporário do GitHub), tenta recarregar após 5s
+                      setTimeout(() => {
+                        const img = e.currentTarget as HTMLImageElement;
+                        img.src = `${asset.thumbnailUrl}?t=${Date.now()}`;
+                      }, 5000);
+                    }}
+                    style={{ opacity: 0.3 }}
+                  />
+                ) : (
+                  <div className="animate-pulse bg-zinc-800 w-full h-full flex items-center justify-center">
+                    <span className="text-[8px] font-black text-zinc-700 uppercase tracking-widest">Sincronizando...</span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              {/* Info Area */}
+              
               <div className="p-8 flex flex-col justify-between flex-grow bg-gradient-to-b from-transparent to-black/40">
                 <div className="overflow-hidden">
                   <h3 className="text-2xl font-black uppercase italic truncate mb-1">{asset.title}</h3>
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Format: {asset.fileType}</p>
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Type: {asset.fileType}</p>
                 </div>
                 <div className="flex justify-between items-center text-[9px] font-black text-zinc-400 uppercase tracking-widest pt-5 border-t border-white/5 mt-2">
                   <span className="bg-white/5 px-4 py-1.5 rounded-lg border border-white/5">{asset.category}</span>
@@ -253,7 +267,7 @@ export default function App() {
           ))}
           {filteredAssets.length === 0 && (
             <div className="col-span-full py-32 text-center opacity-40">
-              <p className="text-zinc-600 font-black uppercase tracking-[0.6em] text-xs">Aguardando sincronização de rede...</p>
+              <p className="text-zinc-600 font-black uppercase tracking-[0.6em] text-xs">Nenhum registro no setor.</p>
             </div>
           )}
         </div>
@@ -270,40 +284,40 @@ export default function App() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/98 backdrop-blur-3xl" onClick={() => !isUploading && setShowUpload(false)} />
           <form onSubmit={handleUpload} className="relative w-full max-w-3xl bg-[#080808] border border-white/10 rounded-[3.5rem] p-12 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
-            <h2 className="text-4xl font-black italic uppercase mb-12 tracking-tighter">Transmitir Protocolo</h2>
+            <h2 className="text-4xl font-black italic uppercase mb-12 tracking-tighter">Protocolo de Transmissão</h2>
             <div className="space-y-8">
-              <input required name="title" placeholder="TÍTULO DO ASSET" className="w-full bg-zinc-900 border border-white/5 rounded-2xl p-6 text-[11px] font-black uppercase outline-none focus:border-white/20 transition-all" />
-              <textarea required name="desc" placeholder="DESCRIÇÃO TÉCNICA DO ARQUIVO" className="w-full bg-zinc-900 border border-white/5 rounded-2xl p-6 h-40 resize-none text-[11px] font-black uppercase outline-none focus:border-white/20 transition-all" />
+              <input required name="title" placeholder="IDENTIFICAÇÃO DO ASSET" className="w-full bg-zinc-900 border border-white/5 rounded-2xl p-6 text-[11px] font-black uppercase outline-none focus:border-white/20 transition-all" />
+              <textarea required name="desc" placeholder="ESPECIFICAÇÕES TÉCNICAS" className="w-full bg-zinc-900 border border-white/5 rounded-2xl p-6 h-40 resize-none text-[11px] font-black uppercase outline-none focus:border-white/20 transition-all" />
               <div className="grid grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black uppercase text-zinc-600 ml-2">File (.rbxm/.rbxl)</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-600 ml-2">Binário (.rbxm/.rbxl)</label>
                   <input required name="file" type="file" accept=".rbxm,.rbxl" className="bg-zinc-900 p-4 rounded-2xl text-[9px] text-zinc-400 border border-white/5 file:hidden cursor-pointer" />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black uppercase text-zinc-600 ml-2">Category</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-600 ml-2">Classificação</label>
                   <select name="category" className="bg-zinc-900 p-4 rounded-2xl text-[10px] uppercase font-black outline-none border border-white/5 cursor-pointer">
                     {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black uppercase text-zinc-600 ml-2">Showcase Video (MP4)</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-600 ml-2">Showcase MP4</label>
                   <input required name="video" type="file" accept="video/mp4" className="bg-zinc-900 p-4 rounded-2xl text-[9px] text-zinc-400 border border-white/5 file:hidden cursor-pointer" />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black uppercase text-zinc-600 ml-2">Thumbnail Img</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-600 ml-2">Visual PNG/JPG</label>
                   <input required name="thumb" type="file" accept="image/*" className="bg-zinc-900 p-4 rounded-2xl text-[9px] text-zinc-400 border border-white/5 file:hidden cursor-pointer" />
                 </div>
               </div>
-              <input required name="credits" placeholder="AUTOR OU CRÉDITOS ORIGINAIS" className="w-full bg-zinc-900 p-6 rounded-2xl text-[11px] font-black uppercase outline-none border border-white/5 transition-all" />
+              <input required name="credits" placeholder="CREDENCIAIS DE AUTORIA" className="w-full bg-zinc-900 p-6 rounded-2xl text-[11px] font-black uppercase outline-none border border-white/5 transition-all" />
               <button disabled={isUploading} className="w-full bg-white text-black py-7 rounded-3xl font-black uppercase text-sm tracking-widest hover:bg-zinc-200 transition-all disabled:opacity-50 shadow-xl">
-                {isUploading ? uploadProgress : 'Sincronizar com Repositório'}
+                {isUploading ? uploadProgress : 'Transmitir aos Servidores'}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Asset View Modal */}
+      {/* Asset Detail View */}
       {selectedAsset && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/98 backdrop-blur-2xl" onClick={() => setSelectedAsset(null)} />
@@ -311,9 +325,19 @@ export default function App() {
             <div className="lg:w-2/3 p-14 overflow-y-auto custom-scrollbar border-b lg:border-b-0 lg:border-r border-white/5">
               <div className="aspect-video rounded-[3rem] overflow-hidden bg-black mb-12 border border-white/10 shadow-2xl relative">
                 {selectedAsset.videoUrl ? (
-                  <video src={selectedAsset.videoUrl} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+                  <video 
+                    src={`${selectedAsset.videoUrl}?t=${selectedAsset.timestamp}`} 
+                    autoPlay muted loop playsInline 
+                    className="w-full h-full object-cover" 
+                    onError={(e) => {
+                      setTimeout(() => {
+                        const vid = e.currentTarget as HTMLVideoElement;
+                        vid.src = `${selectedAsset.videoUrl}?t=${Date.now()}`;
+                      }, 5000);
+                    }}
+                  />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-zinc-900 text-[10px] font-black text-zinc-600 uppercase">Aguardando Mídia...</div>
+                  <div className="w-full h-full flex items-center justify-center bg-zinc-900 text-[10px] font-black text-zinc-600 uppercase">Bufferizando...</div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
               </div>
@@ -321,7 +345,7 @@ export default function App() {
                 <div>
                   <h2 className="text-5xl lg:text-7xl font-black italic uppercase tracking-tighter leading-none">{selectedAsset.title}</h2>
                   <div className="flex items-center gap-3 mt-5">
-                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.3em] bg-white/[0.03] px-4 py-1.5 rounded-xl border border-white/5">SERIAL: {selectedAsset.id}</span>
+                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.3em] bg-white/[0.03] px-4 py-1.5 rounded-xl border border-white/5">UUID: {selectedAsset.id}</span>
                   </div>
                 </div>
                 <div className="flex gap-3">
@@ -329,7 +353,7 @@ export default function App() {
                    <span className="px-6 py-2.5 bg-white/5 rounded-2xl text-[10px] font-black border border-white/10 uppercase tracking-[0.2em]">{selectedAsset.fileType}</span>
                 </div>
               </div>
-              <p className="text-zinc-400 mb-14 leading-relaxed text-base whitespace-pre-wrap bg-white/[0.02] p-8 rounded-[2rem] border border-white/5 shadow-inner">"{selectedAsset.description}"</p>
+              <p className="text-zinc-400 mb-14 leading-relaxed text-base whitespace-pre-wrap bg-white/[0.02] p-8 rounded-[2rem] border border-white/5 shadow-inner italic">"{selectedAsset.description}"</p>
             </div>
             <div className="lg:w-1/3 bg-black/60 p-14 flex flex-col justify-between">
               <div className="space-y-10">
@@ -337,28 +361,28 @@ export default function App() {
                    <div className="flex items-center gap-6">
                       <img src={selectedAsset.authorAvatar} className="w-16 h-16 rounded-2xl grayscale border border-white/10" />
                       <div>
-                        <p className="text-[9px] font-black uppercase text-zinc-600 tracking-widest">Developer</p>
+                        <p className="text-[9px] font-black uppercase text-zinc-600 tracking-widest">Provider</p>
                         <p className="text-[16px] font-black uppercase tracking-tighter leading-none">{selectedAsset.authorName}</p>
                       </div>
                    </div>
                    <div className="pt-8 border-t border-white/5">
-                      <p className="text-[9px] font-black uppercase text-zinc-600 mb-2 tracking-widest">Credits & Ownership</p>
+                      <p className="text-[9px] font-black uppercase text-zinc-600 mb-2 tracking-widest">Ownership & Logic</p>
                       <p className="text-[12px] text-zinc-400 italic leading-snug">{selectedAsset.credits}</p>
                    </div>
                 </div>
                 <div className="grid grid-cols-2 gap-5">
                   <div className="p-8 bg-white/[0.04] rounded-[2rem] border border-white/5 text-center shadow-lg">
-                    <p className="text-[9px] font-black text-zinc-600 uppercase mb-2 tracking-widest">Global DL</p>
+                    <p className="text-[9px] font-black text-zinc-600 uppercase mb-2 tracking-widest">Downloads</p>
                     <p className="text-3xl font-black tracking-tighter">{selectedAsset.downloadCount}</p>
                   </div>
                   <div className="p-8 bg-white/[0.04] rounded-[2rem] border border-white/5 text-center shadow-lg">
-                    <p className="text-[9px] font-black text-zinc-600 uppercase mb-2 tracking-widest">Recognition</p>
+                    <p className="text-[9px] font-black text-zinc-600 uppercase mb-2 tracking-widest">Likes</p>
                     <p className="text-3xl font-black tracking-tighter">{selectedAsset.likes?.length || 0}</p>
                   </div>
                 </div>
                 <div className="space-y-5">
                   <button onClick={() => handleDownload(selectedAsset)} className="w-full py-8 rounded-[2rem] bg-white text-black font-black uppercase text-xs hover:bg-zinc-200 transition-all flex items-center justify-center gap-4 shadow-xl active:scale-95">
-                    <Icons.Download /> ADQUIRIR PROTOCOLO
+                    <Icons.Download /> ADQUIRIR FILE
                   </button>
                   <button onClick={() => handleLike(selectedAsset.id)} className={`w-full py-8 rounded-[2rem] font-black uppercase text-xs border border-white/10 transition-all flex items-center justify-center gap-4 active:scale-95 ${selectedAsset.likes?.includes(currentUser?.id || '') ? 'bg-blue-600/20 text-blue-400 border-blue-500/50' : 'bg-white/5 text-white hover:bg-white/10'}`}>
                      <Icons.Like filled={selectedAsset.likes?.includes(currentUser?.id || '')} />
