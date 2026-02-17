@@ -14,7 +14,7 @@ declare global {
 const ADMIN_EMAILS = ['kaioadrik08@gmail.com'];
 const ALLOWED_ROBLOX_EXTENSIONS = ['.rbxm', '.rbxl', '.rbxmx'];
 
-const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () => void }> = ({ asset, currentUser, onClick }) => {
+const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () => void, isVerifiedTab?: boolean }> = ({ asset, currentUser, onClick, isVerifiedTab }) => {
   const [showVideo, setShowVideo] = useState(false);
   const hoverTimer = useRef<any>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -39,7 +39,7 @@ const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () 
       onClick={onClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`premium-card group rounded-[1.5rem] overflow-hidden cursor-pointer border border-white/5 flex flex-col h-[380px] relative ${asset.reports > 5 ? 'opacity-50 grayscale' : ''}`}
+      className={`premium-card group rounded-[1.5rem] overflow-hidden cursor-pointer border flex flex-col h-[380px] relative transition-all duration-500 ${asset.reports > 5 ? 'opacity-50 grayscale' : 'opacity-100'} ${isVerifiedTab ? 'border-blue-500/20 hover:border-blue-500/50 hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]' : 'border-white/5'}`}
     >
       <div className="h-[200px] w-full relative overflow-hidden bg-zinc-900 flex items-center justify-center">
         {asset.reports > 0 && (
@@ -91,7 +91,7 @@ const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () 
           </p>
         </div>
         <div className="flex justify-between items-center text-[8px] font-black text-zinc-400 uppercase tracking-widest pt-4 border-t border-white/5 mt-2">
-          <span className="bg-white/5 px-3 py-1 rounded-md border border-white/5">{asset.category}</span>
+          <span className={`px-3 py-1 rounded-md border ${isVerifiedTab ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-white/5 border-white/5'}`}>{asset.category}</span>
           <div className="flex gap-4 items-center">
             <span className="flex items-center gap-1.5"><Icons.Like filled={asset.likes?.includes(currentUser?.id || '')} className="w-4 h-4" /> {asset.likes?.length || 0}</span>
             <span className="flex items-center gap-1.5"><Icons.Download className="w-4 h-4" /> {asset.downloadCount || 0}</span>
@@ -129,10 +129,8 @@ export default function App() {
   const [isSavingName, setIsSavingName] = useState(false);
   const [nameError, setNameError] = useState('');
 
-  // Helper aprimorado para checar isAdmin
   const isAdmin = (user: User | null) => user ? (user.isAdmin || ADMIN_EMAILS.includes(user.email)) : false;
 
-  // Atalho Ctrl+B para Admin
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === 'b') {
@@ -149,7 +147,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentUser]);
 
-  // Bloqueio de aba admin para não-admins
   useEffect(() => {
     if (activeTab === 'admin' && !isAdmin(currentUser)) {
       setActiveTab('explore');
@@ -505,7 +502,6 @@ export default function App() {
              <span>PROFILE</span>
           </button>
 
-          {/* Botão Admin só aparece para admins logados. Atalho Ctrl+B também funciona. */}
           {isAdmin(currentUser) && (
             <button onClick={() => setActiveTab('admin')} className={`flex items-center gap-4 p-4 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all mt-6 ${activeTab === 'admin' ? 'bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.3)]' : 'text-red-500 hover:bg-red-500/10'}`}>
                <Icons.Report className="w-5 h-5" />
@@ -648,15 +644,15 @@ export default function App() {
             <div className="animate-in fade-in duration-700">
                 <header className="mb-14 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative">
                     {activeTab === 'verified' && (
-                        <div className="absolute -top-12 -left-12 w-96 h-96 bg-blue-600/10 blur-[150px] pointer-events-none rounded-full" />
+                        <div className="absolute -top-32 -left-32 w-[500px] h-[500px] bg-blue-600/10 blur-[150px] pointer-events-none rounded-full animate-pulse" />
                     )}
                     <div>
-                        <h2 className={`text-6xl font-black italic uppercase tracking-tighter leading-none flex items-center gap-4 ${activeTab === 'verified' ? 'text-blue-500' : 'text-white'}`}>
+                        <h2 className={`text-6xl font-black italic uppercase tracking-tighter leading-none flex items-center gap-4 ${activeTab === 'verified' ? 'text-blue-500 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'text-white'}`}>
                           {activeTab}
                           {activeTab === 'verified' && <Icons.Verified className="w-12 h-12 text-blue-500" />}
                         </h2>
                         <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.5em] mt-3">
-                          {activeTab === 'verified' ? 'PREMIUM AGENT REPOSITORY' : 'DECENTRALIZED ROBLOX HUB'}
+                          {activeTab === 'verified' ? 'PREMIUM AGENT REPOSITORY (PUBLIC ACCESS)' : 'DECENTRALIZED ROBLOX HUB'}
                         </p>
                     </div>
                     <div className="flex items-center gap-3 w-full md:w-auto">
@@ -668,10 +664,10 @@ export default function App() {
                 </header>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
-                    {filteredAssets.map(asset => <AssetCard key={asset.id} asset={asset} currentUser={currentUser} onClick={() => setSelectedAsset(asset)} />)}
+                    {filteredAssets.map(asset => <AssetCard key={asset.id} asset={asset} currentUser={currentUser} onClick={() => setSelectedAsset(asset)} isVerifiedTab={activeTab === 'verified'} />)}
                     {filteredAssets.length === 0 && (
                         <div className="col-span-full py-40 text-center">
-                          <div className="w-20 h-20 bg-zinc-900 rounded-3xl mx-auto mb-8 flex items-center justify-center opacity-20">
+                          <div className={`w-20 h-20 rounded-3xl mx-auto mb-8 flex items-center justify-center opacity-20 ${activeTab === 'verified' ? 'bg-blue-600/20 text-blue-500' : 'bg-zinc-900'}`}>
                             <Icons.Model className="w-10 h-10" />
                           </div>
                           <p className="text-zinc-700 font-black uppercase tracking-[0.6em] text-[11px]">
