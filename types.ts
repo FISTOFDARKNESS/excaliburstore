@@ -8,6 +8,8 @@ export enum Category {
   ANIMATION = 'Animation'
 }
 
+export type TabId = 'explore' | 'verified' | 'market' | 'profile' | 'admin';
+
 export type RobloxFileType = '.rbxm' | '.rbxl' | '.rbxmx';
 
 export interface Comment {
