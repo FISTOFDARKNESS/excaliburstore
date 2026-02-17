@@ -38,7 +38,6 @@ const AssetCard = ({ asset, currentUser, onClick }: { asset: Asset, currentUser:
       className="premium-card group rounded-[1.5rem] overflow-hidden cursor-pointer border border-white/5 flex flex-col h-[380px] relative"
     >
       <div className="h-[200px] w-full relative overflow-hidden bg-zinc-900 flex items-center justify-center">
-        {/* Indicador de Denúncia */}
         {asset.reports > 0 && (
           <div className="absolute top-4 right-4 bg-red-600/80 backdrop-blur-md p-1.5 rounded-lg border border-red-500/50 text-white z-20 shadow-lg animate-pulse">
             <Icons.Report />
@@ -49,7 +48,6 @@ const AssetCard = ({ asset, currentUser, onClick }: { asset: Asset, currentUser:
            ID: {asset.id.split('-').pop()}
         </div>
         
-        {/* Thumbnail com Fade Out */}
         <img 
           src={`${asset.thumbnailUrl}?t=${asset.timestamp}`} 
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${showVideo ? 'opacity-0' : 'opacity-100'} group-hover:scale-110`}
@@ -62,7 +60,6 @@ const AssetCard = ({ asset, currentUser, onClick }: { asset: Asset, currentUser:
           }}
         />
 
-        {/* Video Preview com Fade In */}
         {showVideo && asset.videoUrl && (
           <video 
             src={`${asset.videoUrl}?t=${asset.timestamp}`}
@@ -122,6 +119,10 @@ export default function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [uploadStep, setUploadStep] = useState(0);
+  
+  // Estados para comentários
+  const [commentText, setCommentText] = useState('');
+  const [isPostingComment, setIsPostingComment] = useState(false);
 
   const syncRegistry = useCallback(async () => {
     try {
@@ -239,6 +240,32 @@ export default function App() {
     } catch (e) { console.error(e); }
   };
 
+  const handleCommentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser || !selectedAsset || !commentText.trim() || isPostingComment) return;
+
+    setIsPostingComment(true);
+    const newComment: Comment = {
+      id: Math.random().toString(36).substr(2, 9),
+      userId: currentUser.id,
+      userName: currentUser.name,
+      userAvatar: currentUser.avatar,
+      text: commentText.trim(),
+      timestamp: Date.now()
+    };
+
+    try {
+      const updated = await githubStorage.addComment(selectedAsset.id, newComment);
+      setAssets(prev => prev.map(a => a.id === selectedAsset.id ? updated : a));
+      setSelectedAsset(updated);
+      setCommentText('');
+    } catch (e) {
+      alert("Erro ao postar comentário.");
+    } finally {
+      setIsPostingComment(false);
+    }
+  };
+
   const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!currentUser) return alert("Login obrigatório.");
@@ -248,7 +275,6 @@ export default function App() {
     const videoFile = formData.get('video') as File;
     if (!assetFile || !thumbFile || !videoFile) return alert("Todos os arquivos são obrigatórios.");
     
-    // Validação rigorosa do tipo de arquivo Roblox
     const fileName = assetFile.name.toLowerCase();
     const isRobloxFile = ALLOWED_ROBLOX_EXTENSIONS.some(ext => fileName.endsWith(ext));
     
@@ -498,7 +524,56 @@ export default function App() {
                 </div>
               </div>
               <p className="text-zinc-400 mb-10 leading-relaxed text-sm whitespace-pre-wrap bg-white/[0.02] p-6 rounded-[1.5rem] border border-white/5 italic">"{selectedAsset.description}"</p>
+              
+              {/* Seção de Comentários */}
+              <div className="mt-12 pt-12 border-t border-white/5">
+                <h3 className="text-xl font-black uppercase italic tracking-tighter mb-8">Protocolo de Feedback</h3>
+                
+                {currentUser ? (
+                  <form onSubmit={handleCommentSubmit} className="mb-10 group">
+                    <div className="relative">
+                      <textarea 
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder="Insira seu comentário sobre este registro..."
+                        className="w-full bg-zinc-900/50 border border-white/5 rounded-[1.5rem] p-6 text-[11px] font-black uppercase outline-none focus:border-white/20 transition-all min-h-[100px] resize-none"
+                      />
+                      <button 
+                        type="submit" 
+                        disabled={isPostingComment || !commentText.trim()}
+                        className="absolute bottom-4 right-4 bg-white text-black px-6 py-2 rounded-xl text-[9px] font-black uppercase hover:bg-zinc-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isPostingComment ? 'Processando...' : 'Transmitir'}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="bg-white/[0.02] border border-dashed border-white/5 rounded-[1.5rem] p-8 text-center mb-10">
+                    <p className="text-[9px] font-black uppercase text-zinc-600 tracking-widest">Acesso restrito: Login necessário para comentar</p>
+                  </div>
+                )}
+
+                <div className="space-y-6">
+                  {selectedAsset.comments && selectedAsset.comments.length > 0 ? (
+                    selectedAsset.comments.map((comment) => (
+                      <div key={comment.id} className="bg-white/[0.03] border border-white/5 rounded-[1.5rem] p-6 flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <img src={comment.userAvatar} className="w-10 h-10 rounded-lg grayscale shrink-0" referrerPolicy="no-referrer" />
+                        <div className="flex-grow">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-[10px] font-black uppercase tracking-tighter">{comment.userName}</span>
+                            <span className="text-[8px] text-zinc-600 font-black uppercase">{new Date(comment.timestamp).toLocaleDateString()}</span>
+                          </div>
+                          <p className="text-zinc-400 text-[11px] leading-relaxed italic">"{comment.text}"</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-[9px] font-black uppercase text-zinc-800 tracking-[0.3em] text-center py-10 italic">Nenhum feedback registrado.</p>
+                  )}
+                </div>
+              </div>
             </div>
+
             <div className="lg:w-2/5 bg-black/60 p-10 flex flex-col justify-between">
               <div className="space-y-8">
                 <div className="p-6 bg-white/[0.04] rounded-[2rem] border border-white/5 space-y-6 shadow-xl">

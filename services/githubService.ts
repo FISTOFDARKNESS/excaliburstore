@@ -150,6 +150,13 @@ export const githubStorage = {
     }));
   },
 
+  async addComment(assetId: string, comment: Comment) {
+    return this.updateAssetMetadata(assetId, (current) => ({
+      ...current,
+      comments: [comment, ...(current.comments || [])]
+    }));
+  },
+
   async removeAsset(assetId: string) {
     const folderPath = `${BASE_PATH}/${assetId}`;
     
@@ -184,7 +191,6 @@ export const githubStorage = {
 
   async getAllAssets(): Promise<Asset[]> {
     try {
-      // 1. Listar diretórios em Marketplace/Assets
       const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${BASE_PATH}?t=${Date.now()}`, {
         headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
       });
@@ -194,7 +200,6 @@ export const githubStorage = {
       const contents = await res.json();
       const folders = contents.filter((item: any) => item.type === 'dir');
       
-      // 2. Buscar metadados de cada pasta em paralelo
       const assetPromises = folders.map(async (folder: any) => {
         const metadata = await this.getAssetMetadata(folder.name);
         return metadata ? metadata.asset : null;
