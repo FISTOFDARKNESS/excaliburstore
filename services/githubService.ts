@@ -1,10 +1,11 @@
 
-import { Asset } from '../types';
+import { Asset, Comment } from '../types';
 
 const GITHUB_TOKEN = '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';
 const OWNER = 'FISTOFDARKNESS';
 const REPO = 'excaliburstore';
 const BASE_PATH = 'Marketplace/Assets';
+const REGISTRY_PATH = 'Marketplace/registry.json';
 
 async function toBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -19,33 +20,74 @@ async function toBase64(file: File): Promise<string> {
 }
 
 export const githubStorage = {
+  async ensureBasePath() {
+    try {
+      const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/Marketplace`, {
+        headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+      });
+      if (response.status === 404) {
+        await this.uploadToRepo('Marketplace/.placeholder', btoa("Init"), "Initialize Marketplace");
+      }
+    } catch (e) {
+      console.error("Path check failed:", e);
+    }
+  },
+
+  async getRegistry(): Promise<{ assets: Asset[], sha?: string }> {
+    try {
+      const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${REGISTRY_PATH}`, {
+        headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+      });
+      if (!res.ok) return { assets: [] };
+      const json = await res.json();
+      return { 
+        assets: JSON.parse(atob(json.content)), 
+        sha: json.sha 
+      };
+    } catch {
+      return { assets: [] };
+    }
+  },
+
+  async updateRegistry(newAsset: Asset) {
+    const { assets, sha } = await this.getRegistry();
+    const updatedAssets = [newAsset, ...assets.filter(a => a.id !== newAsset.id)];
+    await this.uploadToRepo(
+      REGISTRY_PATH,
+      btoa(JSON.stringify(updatedAssets, null, 2)),
+      `Update registry: ${newAsset.title}`,
+      sha
+    );
+  },
+
   async uploadAsset(asset: Asset, files: { asset: File, thumb: File, video: File }) {
     const assetId = asset.id;
     const folderPath = `${BASE_PATH}/${assetId}`;
 
-    // 1. Upload Thumbnail (renomeada)
-    await this.uploadToRepo(`${folderPath}/thumb_bin`, await toBase64(files.thumb), `Upload thumb for ${assetId}`);
-    
-    // 2. Upload Video (renomeada)
-    await this.uploadToRepo(`${folderPath}/video_bin`, await toBase64(files.video), `Upload video for ${assetId}`);
-    
-    // 3. Upload Binary (renomeada)
-    await this.uploadToRepo(`${folderPath}/asset_bin`, await toBase64(files.asset), `Upload binary for ${assetId}`);
+    await this.ensureBasePath();
 
-    // 4. Upload Metadata (O cérebro do asset no repo)
-    const metadata = {
+    // Upload binaries
+    await this.uploadToRepo(`${folderPath}/thumb_bin`, await toBase64(files.thumb), `Thumb: ${assetId}`);
+    await this.uploadToRepo(`${folderPath}/video_bin`, await toBase64(files.video), `Video: ${assetId}`);
+    await this.uploadToRepo(`${folderPath}/asset_bin`, await toBase64(files.asset), `File: ${assetId}`);
+
+    const metadata: Asset = {
       ...asset,
       thumbnailUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${folderPath}/thumb_bin`,
       videoUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${folderPath}/video_bin`,
       fileUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${folderPath}/asset_bin`
     };
 
-    await this.uploadToRepo(`${folderPath}/metadata.json`, btoa(JSON.stringify(metadata, null, 2)), `Upload metadata for ${assetId}`);
+    // Save individual metadata for backup
+    await this.uploadToRepo(`${folderPath}/metadata.json`, btoa(JSON.stringify(metadata, null, 2)), `Meta: ${assetId}`);
+    
+    // Update global registry for fast loading
+    await this.updateRegistry(metadata);
     
     return metadata;
   },
 
-  async uploadToRepo(path: string, content: string, message: string) {
+  async uploadToRepo(path: string, content: string, message: string, sha?: string) {
     const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`, {
       method: 'PUT',
       headers: {
@@ -55,41 +97,62 @@ export const githubStorage = {
       body: JSON.stringify({
         message,
         content,
-        branch: 'main'
+        branch: 'main',
+        ...(sha ? { sha } : {})
       })
     });
 
     if (!response.ok) {
       const err = await response.json();
-      throw new Error(err.message || 'Github Upload Failed');
+      throw new Error(err.message || 'Github Operation Failed');
     }
+    return await response.json();
+  },
+
+  async updateAssetInRegistry(assetId: string, updater: (current: Asset) => Asset) {
+    const { assets, sha } = await this.getRegistry();
+    const index = assets.findIndex(a => a.id === assetId);
+    if (index === -1) throw new Error("Asset not found in registry");
+    
+    const updated = updater(assets[index]);
+    assets[index] = updated;
+
+    await this.uploadToRepo(
+      REGISTRY_PATH,
+      btoa(JSON.stringify(assets, null, 2)),
+      `Sync Registry: ${assetId}`,
+      sha
+    );
+    return updated;
+  },
+
+  async toggleLike(assetId: string, userId: string) {
+    return this.updateAssetInRegistry(assetId, (current) => {
+      const likes = current.likes || [];
+      const hasLiked = likes.includes(userId);
+      return {
+        ...current,
+        likes: hasLiked ? likes.filter(id => id !== userId) : [...likes, userId]
+      };
+    });
+  },
+
+  async incrementDownload(assetId: string) {
+    return this.updateAssetInRegistry(assetId, (current) => ({
+      ...current,
+      downloadCount: (current.downloadCount || 0) + 1
+    }));
+  },
+
+  async addComment(assetId: string, comment: Comment) {
+    return this.updateAssetInRegistry(assetId, (current) => ({
+      ...current,
+      comments: [comment, ...(current.comments || [])]
+    }));
   },
 
   async getAllAssets(): Promise<Asset[]> {
-    try {
-      // List folders in Marketplace/Assets
-      const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${BASE_PATH}`, {
-        headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-      });
-      
-      if (!response.ok) return [];
-      const folders = await response.json();
-      
-      const assetPromises = folders
-        .filter((f: any) => f.type === 'dir')
-        .map(async (f: any) => {
-          const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${f.path}/metadata.json`, {
-            headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-          });
-          if (!res.ok) return null;
-          const meta = await res.json();
-          return JSON.parse(atob(meta.content));
-        });
-
-      const results = await Promise.all(assetPromises);
-      return results.filter(r => r !== null) as Asset[];
-    } catch (e) {
-      return [];
-    }
+    const { assets } = await this.getRegistry();
+    return assets;
   }
 };
