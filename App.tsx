@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Asset, User, Category, RobloxFileType, Comment } from './types';
 import { Icons } from './constants';
@@ -232,13 +231,16 @@ export default function App() {
                     src={`${asset.thumbnailUrl}?t=${asset.timestamp}`} 
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
                     alt={asset.title}
-                    onLoad={(e) => (e.currentTarget.style.opacity = '1')}
+                    onLoad={(e) => {
+                      if (e.currentTarget) e.currentTarget.style.opacity = '1';
+                    }}
                     onError={(e) => {
-                      const target = e.currentTarget;
-                      // Se a imagem falhar, tenta recarregar após 5s
+                      // Usar target local para evitar problemas de closure com e.currentTarget
+                      const imgElement = e.target as HTMLImageElement;
+                      const originalUrl = asset.thumbnailUrl;
                       setTimeout(() => {
-                        if (target) {
-                          target.src = `${asset.thumbnailUrl}?t=${Date.now()}`;
+                        if (imgElement && originalUrl) {
+                          imgElement.src = `${originalUrl}?t=${Date.now()}`;
                         }
                       }, 5000);
                     }}
@@ -332,10 +334,11 @@ export default function App() {
                     autoPlay muted loop playsInline 
                     className="w-full h-full object-cover" 
                     onError={(e) => {
-                      const target = e.currentTarget;
+                      const videoElement = e.target as HTMLVideoElement;
+                      const videoUrl = selectedAsset.videoUrl;
                       setTimeout(() => {
-                        if (target) {
-                          target.src = `${selectedAsset.videoUrl}?t=${Date.now()}`;
+                        if (videoElement && videoUrl) {
+                          videoElement.src = `${videoUrl}?t=${Date.now()}`;
                         }
                       }, 5000);
                     }}
