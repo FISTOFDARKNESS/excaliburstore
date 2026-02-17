@@ -12,6 +12,7 @@ declare global {
 }
 
 const ADMIN_EMAILS = ['kaioadrik08@gmail.com'];
+const ALLOWED_ROBLOX_EXTENSIONS = ['.rbxm', '.rbxl', '.rbxmx'];
 
 // Sub-componente para gerenciar a lógica de hover individual de cada card
 const AssetCard = ({ asset, currentUser, onClick }: { asset: Asset, currentUser: User | null, onClick: () => void }) => {
@@ -247,6 +248,15 @@ export default function App() {
     const videoFile = formData.get('video') as File;
     if (!assetFile || !thumbFile || !videoFile) return alert("Todos os arquivos são obrigatórios.");
     
+    // Validação rigorosa do tipo de arquivo Roblox
+    const fileName = assetFile.name.toLowerCase();
+    const isRobloxFile = ALLOWED_ROBLOX_EXTENSIONS.some(ext => fileName.endsWith(ext));
+    
+    if (!isRobloxFile) {
+      alert("BLOQUEADO: Apenas arquivos legítimos do Roblox (.rbxm, .rbxl, .rbxmx) são permitidos para transmissão.");
+      return;
+    }
+
     setIsUploading(true);
     setUploadStep(1);
     setUploadProgress('IA: Analisando e gerando tags semânticas...');
@@ -417,8 +427,8 @@ export default function App() {
                 <textarea required name="desc" placeholder="ESPECIFICAÇÕES TÉCNICAS" className="w-full bg-zinc-900 border border-white/5 rounded-xl p-5 h-32 resize-none text-[10px] font-black uppercase outline-none focus:border-white/20 transition-all" />
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[9px] font-black uppercase text-zinc-600 ml-1">Binário</label>
-                    <input required name="file" type="file" accept=".rbxm,.rbxl" className="bg-zinc-900 p-3.5 rounded-xl text-[8px] text-zinc-400 border border-white/5 file:hidden cursor-pointer" />
+                    <label className="text-[9px] font-black uppercase text-zinc-600 ml-1">Binário Roblox (.rbxm, .rbxl, .rbxmx)</label>
+                    <input required name="file" type="file" accept=".rbxm,.rbxl,.rbxmx" className="bg-zinc-900 p-3.5 rounded-xl text-[8px] text-zinc-400 border border-white/5 file:hidden cursor-pointer" />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[9px] font-black uppercase text-zinc-600 ml-1">Classificação</label>
