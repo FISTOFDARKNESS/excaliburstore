@@ -1,9 +1,8 @@
 
 import React from 'react';
-import { Asset, Category, User } from './types';
+import { User, Asset } from './types';
 
 export const MOCK_USERS: User[] = [];
-
 export const MOCK_ASSETS: Asset[] = [];
 
 export const Icons = {
@@ -27,14 +26,9 @@ export const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
     </svg>
   ),
-  Like: (props: { filled?: boolean }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill={props.filled ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75a.75.75 0 0 1 .75-.75 2.25 2.25 0 0 1 2.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 0 1-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 0 0-1.423-.23H5.904M14.25 9h2.25M5.904 18.5c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 0 1-.521-3.507c0-1.553.295-3.036.831-4.398C3.387 9.953 4.167 9.5 5 9.5h1.053c.472 0 .745.551.5.96a12.192 12.192 0 0 0-.6 2.22m0 0A12.148 12.148 0 0 0 5.83 18.5" />
-    </svg>
-  ),
-  Dislike: (props: { filled?: boolean }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill={props.filled ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 15h2.25m8.024-9.75c.011.05.028.1.052.148.594 1.2.432 2.688-.31 3.812-.447.675-1.143 1.04-1.891 1.04h-3.126c-.618 0-1.026.724-.863 1.282.463.975.723 2.066.723 3.218a2.25 2.25 0 0 1-2.25 2.25c-.172 0-.34-.02-.501-.058a.75.75 0 0 1-.607-.942v-1.124c0-.573-.105-1.137-.308-1.669-.204-.533-.514-1.018-.916-1.432a9.041 9.041 0 0 1-2.861-2.4c-.498-.634-1.225-1.08-2.031-1.08H5.904M5.904 5.5c-.083-.205-.173-.405-.27-.602a.607.607 0 0 1 .523-.898h.908c.889 0 1.713.518 1.972 1.368.175.57.34 1.156.495 1.758a12.106 12.106 0 0 1 .521 3.507c0 1.553-.295 3.036-.831 4.398-.273.692-1.053 1.145-1.886 1.145H5c-.472 0-.745-.551-.5-.96a12.192 12.192 0 0 0 .6-2.22m0 0A12.148 12.148 0 0 1 5.83 5.5" />
+  Like: ({ filled }: { filled?: boolean }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill={filled ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
     </svg>
   ),
   Download: () => (
