@@ -58,7 +58,7 @@
   }
 
   .search-wrapper {
-    @apply relative flex items-center w-full max-w-[450px] h-14;
+    @apply relative flex items-center w-full lg:max-w-[450px] h-14;
   }
 
   .search-input-fancy {
@@ -87,5 +87,25 @@
 
   .glitch-active {
     animation: glitch 0.2s cubic-bezier(.25,.46,.45,.94) both infinite;
+  }
+
+  .input-terminal-fancy {
+    @apply w-full bg-black/60 border border-white/10 rounded-2xl py-4 px-6 text-[12px] font-mono font-bold uppercase outline-none focus:border-white/30 transition-all placeholder:text-zinc-800;
+  }
+
+  .btn-primary-glitch {
+    @apply px-8 py-4 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl relative transition-all active:scale-95;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    @apply w-1;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-white/10 rounded-full hover:bg-white/20;
   }
 }

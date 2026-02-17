@@ -26,9 +26,8 @@ const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () 
     }
   }, [isHovered]);
 
-  // Forçamos o recarregamento do thumbnail com timestamp atual para evitar cache
-  const thumbUrl = `${asset.thumbnailUrl}?t=${Date.now()}`;
-  const videoUrl = asset.videoUrl ? `${asset.videoUrl}?t=${Date.now()}` : '';
+  const thumbUrl = `${asset.thumbnailUrl}?t=${asset.timestamp}`;
+  const videoUrl = asset.videoUrl ? `${asset.videoUrl}?t=${asset.timestamp}` : '';
 
   return (
     <div 
@@ -96,7 +95,6 @@ const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () 
 
 export default function App() {
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -108,7 +106,6 @@ export default function App() {
   const [showUpload, setShowUpload] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
-  const [uploadStep, setUploadStep] = useState(0);
 
   const isAdmin = (user: User | null) => user ? (user.isAdmin || ADMIN_EMAILS.includes(user.email)) : false;
 
@@ -183,7 +180,6 @@ export default function App() {
 
   const handleDownload = async (asset: Asset) => {
     if (!currentUser) return alert("Identify required.");
-    // Forçamos o download com no-cache dinâmico
     const finalUrl = `${asset.fileUrl}?t=${Date.now()}`;
     window.open(finalUrl, '_blank');
     const updated = await githubStorage.incrementDownload(asset.id);
@@ -206,12 +202,11 @@ export default function App() {
     const thumbFile = formData.get('thumb') as File;
     const videoFile = formData.get('video') as File;
     if (!ALLOWED_ROBLOX_EXTENSIONS.some(ext => assetFile.name.toLowerCase().endsWith(ext))) return alert("Invalid Format.");
-    setIsUploading(true); setUploadStep(1); setUploadProgress("AI Analyzing DNA...");
+    setIsUploading(true); setUploadProgress("AI Analyzing DNA...");
     try {
       const title = formData.get('title') as string;
       const desc = formData.get('desc') as string;
       const keywords = await generateKeywords(title, desc);
-      setUploadStep(2);
       const asset: Asset = {
         id: `EXC-${Date.now().toString(36).toUpperCase()}`,
         userId: currentUser.id, authorName: currentUser.name, authorAvatar: currentUser.avatar,
@@ -222,8 +217,8 @@ export default function App() {
         comments: [], timestamp: Date.now(), keywords,
         authorVerified: currentUser.isVerified
       };
-      await githubStorage.uploadAsset(asset, { asset: assetFile, thumb: thumbFile, video: videoFile }, (msg) => { setUploadProgress(msg); setUploadStep(prev => Math.min(prev + 1, 6)); });
-      setIsUploading(false); setShowUpload(false); setUploadStep(0); syncRegistry(true);
+      await githubStorage.uploadAsset(asset, { asset: assetFile, thumb: thumbFile, video: videoFile }, (msg) => { setUploadProgress(msg); });
+      setIsUploading(false); setShowUpload(false); syncRegistry(true);
     } catch (err) { alert("Uplink Failed."); setIsUploading(false); }
   };
 
@@ -249,8 +244,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row max-w-[1600px] mx-auto">
-      
-      {/* Sidebar */}
       <aside className="w-full lg:w-72 shrink-0 flex flex-col glass-panel lg:fixed h-auto lg:h-[calc(100vh-80px)] top-10 left-10 rounded-[3rem] p-8 z-50 border-white/5">
         <div className="flex items-center gap-4 mb-16">
           <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-xl">
@@ -258,33 +251,21 @@ export default function App() {
           </div>
           <h1 className="font-black italic text-xl tracking-tighter text-white">EXCALIBUR</h1>
         </div>
-
         <nav className="flex flex-col gap-2 flex-grow">
-          <button onClick={() => setActiveTab('explore')} className={`sidebar-item ${activeTab === 'explore' ? 'active' : ''}`}>
-             <Icons.Search className="w-5 h-5 shrink-0" /> <span>Registry</span>
-          </button>
-          <button onClick={() => setActiveTab('verified')} className={`sidebar-item ${activeTab === 'verified' ? 'active' : ''}`}>
-             <Icons.Verified className="w-5 h-5 shrink-0" /> <span>Certified</span>
-          </button>
-          <button onClick={() => setActiveTab('market')} className={`sidebar-item ${activeTab === 'market' ? 'active' : ''}`}>
-             <Icons.Script className="w-5 h-5 shrink-0" /> <span>Open Source</span>
-          </button>
-          <button onClick={() => setActiveTab('profile')} className={`sidebar-item ${activeTab === 'profile' ? 'active' : ''}`}>
-             <Icons.Plus className="w-5 h-5 shrink-0" /> <span>My Chamber</span>
-          </button>
+          <button onClick={() => setActiveTab('explore')} className={`sidebar-item ${activeTab === 'explore' ? 'active' : ''}`}><Icons.Search className="w-5 h-5 shrink-0" /> <span>Registry</span></button>
+          <button onClick={() => setActiveTab('verified')} className={`sidebar-item ${activeTab === 'verified' ? 'active' : ''}`}><Icons.Verified className="w-5 h-5 shrink-0" /> <span>Certified</span></button>
+          <button onClick={() => setActiveTab('market')} className={`sidebar-item ${activeTab === 'market' ? 'active' : ''}`}><Icons.Script className="w-5 h-5 shrink-0" /> <span>Open Source</span></button>
+          <button onClick={() => setActiveTab('profile')} className={`sidebar-item ${activeTab === 'profile' ? 'active' : ''}`}><Icons.Plus className="w-5 h-5 shrink-0" /> <span>My Chamber</span></button>
           {isAdmin(currentUser) && (
-            <button onClick={() => setActiveTab('admin')} className={`sidebar-item mt-8 ${activeTab === 'admin' ? 'bg-brand-red text-white' : 'text-red-500/40 hover:bg-red-500/5'}`}>
-               <Icons.Report className="w-5 h-5 shrink-0" /> <span>Root Terminal</span>
-            </button>
+            <button onClick={() => setActiveTab('admin')} className={`sidebar-item mt-8 ${activeTab === 'admin' ? 'bg-brand-red text-white' : 'text-red-500/40 hover:bg-red-500/5'}`}><Icons.Report className="w-5 h-5 shrink-0" /> <span>Root Terminal</span></button>
           )}
         </nav>
-
         <div className="mt-8 pt-8 border-t border-white/5">
           {currentUser ? (
             <div className="flex items-center gap-4 p-4 glass-panel rounded-[2rem] border-none bg-white/[0.03]">
               <img src={currentUser.avatar} className="w-10 h-10 rounded-xl grayscale border border-white/10" referrerPolicy="no-referrer" />
               <div className="flex-grow min-w-0">
-                <p className="text-[12px] font-black truncate leading-none mb-1.5">{currentUser.name}</p>
+                <p className="text-[12px] font-black truncate mb-1.5">{currentUser.name}</p>
                 <button onClick={handleLogout} className="text-[8px] font-black text-zinc-600 uppercase tracking-widest hover:text-white transition-colors">Disconnect</button>
               </div>
             </div>
@@ -297,39 +278,19 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Main Layout Area */}
-      <main className="flex-grow lg:ml-80 p-6 lg:p-10">
-        
-        <header className="mb-16 flex flex-col md:flex-row justify-between items-start md:items-end gap-10">
-          <div className="min-w-0">
-            <div className="flex items-center gap-4 mb-3">
+      <main className="flex-grow lg:ml-80 p-6 lg:p-10 relative">
+        <header className="mb-20 flex flex-col xl:flex-row justify-between items-start xl:items-end gap-12">
+          <div className="min-w-0 flex-grow">
+            <div className="flex items-center gap-4 mb-4">
               <p className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-700 italic">System // Archive</p>
-              <button 
-                onClick={() => syncRegistry(true)} 
-                className={`flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-all ${isRefreshing ? 'animate-pulse' : ''}`}
-              >
-                {isRefreshing ? 'Syncing...' : 'Force Sync'}
-              </button>
+              <button onClick={() => syncRegistry(true)} className={`flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-all ${isRefreshing ? 'animate-pulse' : ''}`}>{isRefreshing ? 'Syncing...' : 'Force Sync'}</button>
             </div>
-            <h2 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter leading-none glitch-text">{activeTab}</h2>
+            <h2 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter leading-none glitch-text truncate">{activeTab}</h2>
           </div>
-          
-          <div className="search-wrapper group">
+          <div className="search-wrapper group w-full xl:w-auto">
             <Icons.Search className={`absolute left-5 z-10 w-4 h-4 transition-colors ${searchQuery ? 'text-white' : 'text-zinc-700'}`} />
-            <input 
-              value={searchQuery} 
-              onChange={e => setSearchQuery(e.target.value)} 
-              onKeyDown={e => e.key === 'Enter' && handleAiSearch()}
-              placeholder="Registry scan..." 
-              className="search-input-fancy"
-            />
-            <button 
-              onClick={handleAiSearch}
-              disabled={isExpanding || !searchQuery}
-              className="ai-search-btn"
-            >
-               {isExpanding ? <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <span className="text-[8px] font-black uppercase tracking-widest">Gemini_Exp</span>}
-            </button>
+            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAiSearch()} placeholder="Registry scan..." className="search-input-fancy" />
+            <button onClick={handleAiSearch} disabled={isExpanding || !searchQuery} className="ai-search-btn">{isExpanding ? <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <span className="text-[8px] font-black uppercase tracking-widest">Gemini_Exp</span>}</button>
           </div>
         </header>
 
@@ -339,11 +300,8 @@ export default function App() {
                {expandedTerms.slice(0, 6).map(term => <span key={term} className="px-3 py-1 bg-white/5 rounded-lg text-[9px] font-bold text-zinc-500 uppercase">#{term}</span>)}
             </div>
           )}
-
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-            {filteredAssets.map(asset => (
-              <AssetCard key={asset.id} asset={asset} currentUser={currentUser} onClick={() => setSelectedAsset(asset)} />
-            ))}
+            {filteredAssets.map(asset => (<AssetCard key={asset.id} asset={asset} currentUser={currentUser} onClick={() => setSelectedAsset(asset)} />))}
             {filteredAssets.length === 0 && (
               <div className="col-span-full py-48 text-center flex flex-col items-center opacity-10">
                 <Icons.Model className="w-20 h-20 mb-6" />
@@ -354,16 +312,10 @@ export default function App() {
         </div>
 
         {currentUser && !currentUser.isBanned && (
-          <button 
-            onClick={() => setShowUpload(true)} 
-            className="fixed bottom-10 right-10 w-20 h-20 bg-white text-black rounded-[2rem] shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-40 border-[8px] border-brand-black group"
-          >
-            <Icons.Plus className="w-8 h-8 group-hover:rotate-90 transition-transform duration-500" />
-          </button>
+          <button onClick={() => setShowUpload(true)} className="fixed bottom-10 right-10 w-20 h-20 bg-white text-black rounded-[2rem] shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-40 border-[8px] border-brand-black group"><Icons.Plus className="w-8 h-8 group-hover:rotate-90 transition-transform duration-500" /></button>
         )}
       </main>
 
-      {/* Asset Modal */}
       {selectedAsset && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-brand-black/98 backdrop-blur-3xl" onClick={() => setSelectedAsset(null)} />
@@ -376,30 +328,20 @@ export default function App() {
               <div className="flex flex-wrap gap-2 mb-8">
                 {selectedAsset.keywords?.map(k => <span key={k} className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-zinc-500">#{k}</span>)}
               </div>
-              <div className="bg-black/60 rounded-[2rem] p-8 border border-white/5">
-                <p className="text-zinc-400 text-sm italic font-medium">"{selectedAsset.description}"</p>
-              </div>
+              <div className="bg-black/60 rounded-[2rem] p-8 border border-white/5"><p className="text-zinc-400 text-sm italic font-medium">"{selectedAsset.description}"</p></div>
             </div>
             <div className="md:w-[35%] p-10 flex flex-col justify-between bg-zinc-950/40">
               <div className="space-y-10">
-                <div onClick={() => { setSelectedAsset(null); }} className="p-6 glass-panel rounded-[2rem] flex items-center gap-4 cursor-pointer hover:bg-white/5 transition-all group">
-                  <img src={selectedAsset.authorAvatar} className="w-12 h-12 rounded-xl border border-white/10 grayscale group-hover:grayscale-0 transition-all" referrerPolicy="no-referrer" />
+                <div className="p-6 glass-panel rounded-[2rem] flex items-center gap-4 border-none bg-white/[0.03]">
+                  <img src={selectedAsset.authorAvatar} className="w-12 h-12 rounded-xl border border-white/10 grayscale" referrerPolicy="no-referrer" />
                   <div className="min-w-0">
-                    <p className="text-[14px] font-black uppercase truncate flex items-center gap-2">
-                      {selectedAsset.authorName} {selectedAsset.authorVerified && <Icons.Verified className="w-4 h-4 text-blue-400" />}
-                    </p>
+                    <p className="text-[14px] font-black uppercase truncate flex items-center gap-2">{selectedAsset.authorName} {selectedAsset.authorVerified && <Icons.Verified className="w-4 h-4 text-blue-400" />}</p>
                     <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-1">Verified Unit</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-6 glass-panel rounded-3xl text-center border-white/5">
-                    <p className="text-3xl font-black leading-none">{selectedAsset.downloadCount}</p>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-zinc-700 mt-2">Syncs</p>
-                  </div>
-                  <div className="p-6 glass-panel rounded-3xl text-center border-white/5">
-                    <p className="text-3xl font-black leading-none">{selectedAsset.likes?.length || 0}</p>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-zinc-700 mt-2">Loves</p>
-                  </div>
+                  <div className="p-6 glass-panel rounded-3xl text-center border-white/5"><p className="text-3xl font-black leading-none">{selectedAsset.downloadCount}</p><p className="text-[9px] font-black uppercase tracking-widest text-zinc-700 mt-2">Syncs</p></div>
+                  <div className="p-6 glass-panel rounded-3xl text-center border-white/5"><p className="text-3xl font-black leading-none">{selectedAsset.likes?.length || 0}</p><p className="text-[9px] font-black uppercase tracking-widest text-zinc-700 mt-2">Loves</p></div>
                 </div>
                 <button onClick={() => handleDownload(selectedAsset)} className="btn-primary-glitch w-full">Sync Binary</button>
               </div>
@@ -415,47 +357,20 @@ export default function App() {
           <div className="relative w-full max-w-4xl glass-panel rounded-[4rem] overflow-hidden flex flex-col max-h-[90vh] animate-fade-in border-white/10">
             <header className="p-10 border-b border-white/5 flex justify-between items-center bg-black/40">
                <h2 className="text-3xl font-black italic uppercase tracking-tighter text-white">Transmission Uplink</h2>
-               {!isUploading && (
-                  <button onClick={() => setShowUpload(false)} className="w-12 h-12 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors text-zinc-700 hover:text-white">
-                    <Icons.Plus className="w-7 h-7 rotate-45" />
-                  </button>
-               )}
+               {!isUploading && (<button onClick={() => setShowUpload(false)} className="w-12 h-12 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors text-zinc-700 hover:text-white"><Icons.Plus className="w-7 h-7 rotate-45" /></button>)}
             </header>
             <form onSubmit={handleUpload} className="p-10 space-y-10 overflow-y-auto custom-scrollbar">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-6">
-                    <div>
-                      <label className="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-3 block italic">Label</label>
-                      <input required name="title" placeholder="ALIAS..." className="input-terminal-fancy" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-3 block italic">Sector</label>
-                      <select name="category" className="input-terminal-fancy appearance-none">
-                        {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
+                    <div><label className="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-3 block italic">Label</label><input required name="title" placeholder="ALIAS..." className="input-terminal-fancy" /></div>
+                    <div><label className="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-3 block italic">Sector</label><select name="category" className="input-terminal-fancy appearance-none">{Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}</select></div>
                   </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-3 block italic">Logs</label>
-                    <textarea required name="desc" placeholder="FUNCTIONAL DETAILS..." className="input-terminal-fancy h-[132px] resize-none" />
-                  </div>
+                  <div><label className="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-3 block italic">Logs</label><textarea required name="desc" placeholder="FUNCTIONAL DETAILS..." className="input-terminal-fancy h-[132px] resize-none" /></div>
                </div>
                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <label className="group glass-panel rounded-3xl p-8 h-48 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all border-dashed border-white/20">
-                    <Icons.Script className="w-10 h-10 mb-4 opacity-20 group-hover:opacity-100 transition-opacity" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-700 group-hover:text-white">Binary</span>
-                    <input required type="file" name="file" accept=".rbxm,.rbxl,.rbxmx" className="hidden" />
-                  </label>
-                  <label className="group glass-panel rounded-3xl p-8 h-48 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all border-dashed border-white/20">
-                    <Icons.Model className="w-10 h-10 mb-4 opacity-20 group-hover:opacity-100 transition-opacity" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-700 group-hover:text-white">Visual</span>
-                    <input required type="file" name="thumb" accept="image/*" className="hidden" />
-                  </label>
-                  <label className="group glass-panel rounded-3xl p-8 h-48 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all border-dashed border-white/20">
-                    <Icons.Download className="w-10 h-10 mb-4 opacity-20 group-hover:opacity-100 transition-opacity" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-700 group-hover:text-white">Motion</span>
-                    <input required type="file" name="video" accept="video/mp4" className="hidden" />
-                  </label>
+                  <label className="group glass-panel rounded-3xl p-8 h-48 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all border-dashed border-white/20"><Icons.Script className="w-10 h-10 mb-4 opacity-20 group-hover:opacity-100" /><span className="text-[9px] font-black uppercase text-zinc-700 group-hover:text-white">Binary</span><input required type="file" name="file" accept=".rbxm,.rbxl,.rbxmx" className="hidden" /></label>
+                  <label className="group glass-panel rounded-3xl p-8 h-48 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all border-dashed border-white/20"><Icons.Model className="w-10 h-10 mb-4 opacity-20 group-hover:opacity-100" /><span className="text-[9px] font-black uppercase text-zinc-700 group-hover:text-white">Visual</span><input required type="file" name="thumb" accept="image/*" className="hidden" /></label>
+                  <label className="group glass-panel rounded-3xl p-8 h-48 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all border-dashed border-white/20"><Icons.Download className="w-10 h-10 mb-4 opacity-20 group-hover:opacity-100" /><span className="text-[9px] font-black uppercase text-zinc-700 group-hover:text-white">Motion</span><input required type="file" name="video" accept="video/mp4" className="hidden" /></label>
                </div>
                <div className="pt-8 flex justify-end items-center gap-10">
                   <button type="button" onClick={() => setShowUpload(false)} className="text-[11px] font-black uppercase tracking-[0.4em] text-zinc-800 hover:text-white transition-colors">Abort</button>
