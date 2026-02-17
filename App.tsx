@@ -131,6 +131,30 @@ export default function App() {
 
   const isAdmin = (user: User | null) => user ? ADMIN_EMAILS.includes(user.email) : false;
 
+  // Atalho Ctrl+B para Admin
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        if (isAdmin(currentUser)) {
+          setActiveTab('admin');
+          alert("ACESSO AO COMMAND CENTER INICIADO.");
+        } else {
+          console.warn("Acesso administrativo negado: Credenciais insuficientes.");
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentUser]);
+
+  // Bloqueio de aba admin para não-admins
+  useEffect(() => {
+    if (activeTab === 'admin' && !isAdmin(currentUser)) {
+      setActiveTab('explore');
+    }
+  }, [activeTab, currentUser]);
+
   const syncRegistry = useCallback(async () => {
     try {
       const list = await githubStorage.getAllAssets();
@@ -204,10 +228,16 @@ export default function App() {
               email: payload.email,
               avatar: payload.picture
             });
+            
             if (user.isBanned) {
                 alert("ACESSO NEGADO.");
                 return;
             }
+
+            if (isAdmin(user)) {
+               alert(`BEM-VINDO, ADMINISTRADOR ${user.name.toUpperCase()}. Atalho Ctrl+B habilitado.`);
+            }
+
             setCurrentUser(user);
             localStorage.setItem('ex_session_v2', JSON.stringify(user));
           },
@@ -474,6 +504,7 @@ export default function App() {
              <span>PROFILE</span>
           </button>
 
+          {/* Botão Admin só aparece para admins logados. Atalho Ctrl+B também funciona. */}
           {isAdmin(currentUser) && (
             <button onClick={() => setActiveTab('admin')} className={`flex items-center gap-4 p-4 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all mt-6 ${activeTab === 'admin' ? 'bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.3)]' : 'text-red-500 hover:bg-red-500/10'}`}>
                <Icons.Report className="w-5 h-5" />
@@ -511,12 +542,12 @@ export default function App() {
       </aside>
 
       <main className="flex-grow lg:ml-64 p-6 lg:p-12 min-h-screen">
-        {activeTab === 'admin' ? (
+        {activeTab === 'admin' && isAdmin(currentUser) ? (
             <div className="animate-in fade-in duration-500">
                 <header className="mb-14 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                     <div>
                         <h2 className="text-5xl font-black italic uppercase tracking-tighter leading-none text-red-600">Command Center</h2>
-                        <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.4em] mt-2">Protocolos de Gestão Universal</p>
+                        <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.4em] mt-2">Atalho rápido ativado: CTRL + B</p>
                     </div>
                     <div className="flex gap-2">
                         {(['all', 'verified', 'banned', 'reports'] as AdminSubTab[]).map(tab => (
@@ -710,7 +741,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Asset Detail View - Reduzido o ícone verificado */}
+      {/* Asset Detail View */}
       {selectedAsset && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/98 backdrop-blur-2xl" onClick={() => setSelectedAsset(null)} />
