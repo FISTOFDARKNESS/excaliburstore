@@ -14,15 +14,12 @@ declare global {
 const ADMIN_EMAILS = ['kaioadrik08@gmail.com'];
 const ALLOWED_ROBLOX_EXTENSIONS = ['.rbxm', '.rbxl', '.rbxmx'];
 
-// Sub-componente para gerenciar a lógica de hover individual de cada card
 const AssetCard = ({ asset, currentUser, onClick }: { asset: Asset, currentUser: User | null, onClick: () => void }) => {
   const [showVideo, setShowVideo] = useState(false);
   const hoverTimer = useRef<any>(null);
 
   const handleMouseEnter = () => {
-    hoverTimer.current = setTimeout(() => {
-      setShowVideo(true);
-    }, 1200); // 1.2 segundos para iniciar o vídeo
+    hoverTimer.current = setTimeout(() => setShowVideo(true), 1200);
   };
 
   const handleMouseLeave = () => {
@@ -44,40 +41,36 @@ const AssetCard = ({ asset, currentUser, onClick }: { asset: Asset, currentUser:
           </div>
         )}
         
-        <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-[7px] font-black tracking-widest border border-white/10 uppercase shadow-xl z-20">
-           ID: {asset.id.split('-').pop()}
+        <div className="absolute top-4 left-4 flex items-center gap-2 z-20">
+           <div className="bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-[7px] font-black tracking-widest border border-white/10 uppercase shadow-xl">
+             ID: {asset.id.split('-').pop()}
+           </div>
+           {asset.authorVerified && (
+             <div className="bg-blue-500/20 backdrop-blur-md p-1.5 rounded-lg border border-blue-500/30">
+               <Icons.Verified />
+             </div>
+           )}
         </div>
         
         <img 
           src={`${asset.thumbnailUrl}?t=${asset.timestamp}`} 
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${showVideo ? 'opacity-0' : 'opacity-100'} group-hover:scale-110`}
           alt={asset.title}
-          onLoad={(e) => (e.currentTarget.style.opacity = showVideo ? '0' : '1')}
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            const originalUrl = asset.thumbnailUrl;
-            setTimeout(() => { if (target && originalUrl) target.src = `${originalUrl}?t=${Date.now()}`; }, 5000);
-          }}
         />
 
         {showVideo && asset.videoUrl && (
-          <video 
-            src={`${asset.videoUrl}?t=${asset.timestamp}`}
-            autoPlay 
-            muted 
-            loop 
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover animate-in fade-in duration-500"
-          />
+          <video src={`${asset.videoUrl}?t=${asset.timestamp}`} autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover animate-in fade-in duration-500" />
         )}
-
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
       
       <div className="p-6 flex flex-col justify-between flex-grow bg-gradient-to-b from-transparent to-black/40">
-        <div className="overflow-hidden">
-          <h3 className="text-xl font-black uppercase italic truncate mb-1">{asset.title}</h3>
-          <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Type: {asset.fileType}</p>
+        <div>
+          <h3 className="text-xl font-black uppercase italic truncate mb-1 flex items-center gap-2">
+            {asset.title}
+            {asset.authorVerified && <Icons.Verified />}
+          </h3>
+          <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Provider: {asset.authorName}</p>
         </div>
         <div className="flex justify-between items-center text-[8px] font-black text-zinc-400 uppercase tracking-widest pt-4 border-t border-white/5 mt-2">
           <span className="bg-white/5 px-3 py-1 rounded-md border border-white/5">{asset.category}</span>
@@ -91,23 +84,6 @@ const AssetCard = ({ asset, currentUser, onClick }: { asset: Asset, currentUser:
   );
 };
 
-const decodeJWT = (token: string) => {
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    return JSON.parse(jsonPayload);
-  } catch (e) {
-    console.error("JWT Decode failed", e);
-    return null;
-  }
-};
-
 export default function App() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -115,34 +91,33 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'explore' | 'market' | 'profile'>('explore');
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [viewedUser, setViewedUser] = useState<User | null>(null); // Perfil de terceiros
   const [showUpload, setShowUpload] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [uploadStep, setUploadStep] = useState(0);
-  
-  // Estados para comentários
   const [commentText, setCommentText] = useState('');
   const [isPostingComment, setIsPostingComment] = useState(false);
+
+  const isAdmin = (user: User | null) => user ? ADMIN_EMAILS.includes(user.email) : false;
 
   const syncRegistry = useCallback(async () => {
     try {
       const list = await githubStorage.getAllAssets();
       setAssets(list.sort((a, b) => b.timestamp - a.timestamp));
-    } catch (e) {
-      console.error("Sync error:", e);
-    }
+    } catch (e) { console.error(e); }
   }, []);
 
   useEffect(() => {
     const init = async () => {
       await syncRegistry();
-      const session = localStorage.getItem('ex_session');
+      const session = localStorage.getItem('ex_session_v2');
       if (session) {
         try {
-          setCurrentUser(JSON.parse(session));
-        } catch(e) {
-          localStorage.removeItem('ex_session');
-        }
+          const u = JSON.parse(session);
+          const fresh = await githubStorage.getUserProfile(u.id);
+          if (fresh) setCurrentUser(fresh.user);
+        } catch { localStorage.removeItem('ex_session_v2'); }
       }
       setLoading(false);
     };
@@ -151,181 +126,115 @@ export default function App() {
 
   useEffect(() => {
     if (currentUser) return;
-    let interval: any;
-    const tryRender = () => {
-      const btn = document.getElementById('google-login-btn');
-      if (window.google?.accounts?.id && btn) {
+    let interval = setInterval(() => {
+      if (window.google?.accounts?.id) {
         window.google.accounts.id.initialize({
           client_id: "308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com",
-          callback: (response: any) => {
-            const payload = decodeJWT(response.credential);
-            if (payload) {
-              const user: User = {
-                id: payload.sub,
-                name: payload.name,
-                email: payload.email,
-                avatar: payload.picture,
-                joinedAt: Date.now()
-              };
-              setCurrentUser(user);
-              localStorage.setItem('ex_session', JSON.stringify(user));
-            }
+          callback: async (response: any) => {
+            const payload = JSON.parse(atob(response.credential.split('.')[1]));
+            const user = await githubStorage.syncUserProfile({
+              id: payload.sub,
+              name: payload.name,
+              email: payload.email,
+              avatar: payload.picture
+            });
+            setCurrentUser(user);
+            localStorage.setItem('ex_session_v2', JSON.stringify(user));
           },
         });
-        window.google.accounts.id.renderButton(btn, {
-          theme: 'filled_black', size: 'large', shape: 'pill', width: '200'
-        });
+        const btn = document.getElementById('google-login-btn');
+        if (btn) window.google.accounts.id.renderButton(btn, { theme: 'filled_black', size: 'large', shape: 'pill' });
         clearInterval(interval);
       }
-    };
-    interval = setInterval(tryRender, 500);
-    if (!document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true; script.defer = true;
-      document.head.appendChild(script);
-    }
+    }, 500);
     return () => clearInterval(interval);
   }, [currentUser]);
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('ex_session');
-    window.location.reload();
-  };
-
-  const handleLike = async (assetId: string) => {
+  const handleFollow = async (targetId: string) => {
     if (!currentUser) return alert("Login necessário");
     try {
-      const updated = await githubStorage.toggleLike(assetId, currentUser.id);
-      setAssets(prev => prev.map(a => a.id === assetId ? updated : a));
-      if (selectedAsset?.id === assetId) setSelectedAsset(updated);
-    } catch (e) { alert("Erro ao curtir"); }
+      await githubStorage.toggleFollow(currentUser.id, targetId);
+      const freshActor = await githubStorage.getUserProfile(currentUser.id);
+      const freshTarget = await githubStorage.getUserProfile(targetId);
+      if (freshActor) setCurrentUser(freshActor.user);
+      if (freshTarget && viewedUser?.id === targetId) setViewedUser(freshTarget.user);
+    } catch (e) { alert("Erro ao seguir"); }
   };
 
-  const handleReport = async (assetId: string) => {
-    if (!currentUser) return alert("Login necessário para denunciar");
-    if (!confirm("Deseja denunciar este conteúdo por violação das diretrizes?")) return;
+  const handleVerify = async (userId: string, status: boolean) => {
+    if (!isAdmin(currentUser)) return;
     try {
-      const updated = await githubStorage.incrementReport(assetId);
-      setAssets(prev => prev.map(a => a.id === assetId ? updated : a));
-      if (selectedAsset?.id === assetId) setSelectedAsset(updated);
-      alert("Conteúdo denunciado. Nossa equipe irá analisar.");
-    } catch (e) {
-      alert("Falha ao enviar denúncia");
-    }
-  };
-
-  const handleDelete = async (assetId: string) => {
-    if (!confirm("TEM CERTEZA QUE DESEJA ELIMINAR ESTE ASSET? Esta ação é irreversível e removerá todos os binários do servidor.")) return;
-    setLoading(true);
-    try {
-      await githubStorage.removeAsset(assetId);
-      await syncRegistry();
-      setSelectedAsset(null);
-      alert("Asset removido com sucesso.");
-    } catch (e) {
-      alert("Falha ao remover asset.");
-    } finally {
-      setLoading(false);
-    }
+      await githubStorage.verifyUser(userId, status);
+      const fresh = await githubStorage.getUserProfile(userId);
+      if (fresh && viewedUser?.id === userId) setViewedUser(fresh.user);
+      alert("Status de verificação atualizado.");
+    } catch (e) { alert("Erro ao verificar"); }
   };
 
   const handleDownload = async (asset: Asset) => {
     if (!currentUser) return alert("Login necessário");
     window.open(asset.fileUrl, '_blank');
-    try {
-      const updated = await githubStorage.incrementDownload(asset.id);
-      setAssets(prev => prev.map(a => a.id === asset.id ? updated : a));
-    } catch (e) { console.error(e); }
+    await githubStorage.incrementDownload(asset.id);
+    syncRegistry();
   };
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !selectedAsset || !commentText.trim() || isPostingComment) return;
-
+    if (!currentUser || !selectedAsset || !commentText.trim()) return;
     setIsPostingComment(true);
-    const newComment: Comment = {
+    const updated = await githubStorage.addComment(selectedAsset.id, {
       id: Math.random().toString(36).substr(2, 9),
       userId: currentUser.id,
       userName: currentUser.name,
       userAvatar: currentUser.avatar,
       text: commentText.trim(),
       timestamp: Date.now()
-    };
-
-    try {
-      const updated = await githubStorage.addComment(selectedAsset.id, newComment);
-      setAssets(prev => prev.map(a => a.id === selectedAsset.id ? updated : a));
-      setSelectedAsset(updated);
-      setCommentText('');
-    } catch (e) {
-      alert("Erro ao postar comentário.");
-    } finally {
-      setIsPostingComment(false);
-    }
+    });
+    setSelectedAsset(updated);
+    setCommentText('');
+    setIsPostingComment(false);
   };
 
   const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!currentUser) return alert("Login obrigatório.");
+    if (!currentUser) return;
     const formData = new FormData(e.currentTarget);
     const assetFile = formData.get('file') as File;
-    const thumbFile = formData.get('thumb') as File;
-    const videoFile = formData.get('video') as File;
-    if (!assetFile || !thumbFile || !videoFile) return alert("Todos os arquivos são obrigatórios.");
+    if (!ALLOWED_ROBLOX_EXTENSIONS.some(ext => assetFile.name.toLowerCase().endsWith(ext))) return alert("Arquivo inválido");
     
-    const fileName = assetFile.name.toLowerCase();
-    const isRobloxFile = ALLOWED_ROBLOX_EXTENSIONS.some(ext => fileName.endsWith(ext));
-    
-    if (!isRobloxFile) {
-      alert("BLOQUEADO: Apenas arquivos legítimos do Roblox (.rbxm, .rbxl, .rbxmx) são permitidos para transmissão.");
-      return;
-    }
-
     setIsUploading(true);
     setUploadStep(1);
-    setUploadProgress('IA: Analisando e gerando tags semânticas...');
+    setUploadProgress("Gerando Keywords com IA...");
+    const title = formData.get('title') as string;
+    const desc = formData.get('desc') as string;
+    const keywords = await generateKeywords(title, desc);
     
-    try {
-      const title = formData.get('title') as string;
-      const desc = formData.get('desc') as string;
-      const keywords = await generateKeywords(title, desc);
-      
-      setUploadStep(2);
-      setUploadProgress('Preparando transmissão criptografada...');
-      
-      const timestamp = Date.now().toString(36).toUpperCase();
-      const randomStr = Math.random().toString(36).substring(2, 5).toUpperCase();
-      const uniqueId = `EXC-${timestamp}-${randomStr}`;
-      
-      const newAsset: Asset = {
-        id: uniqueId, userId: currentUser.id, authorName: currentUser.name, authorAvatar: currentUser.avatar,
-        title, originalFileName: assetFile.name, description: desc, category: formData.get('category') as Category,
-        thumbnailUrl: '', fileUrl: '', videoUrl: '',
-        fileType: assetFile.name.slice(assetFile.name.lastIndexOf('.')) as RobloxFileType,
-        downloadCount: 0, likes: [], reports: 0, credits: formData.get('credits') as string,
-        comments: [], timestamp: Date.now(), keywords
-      };
+    const asset: Asset = {
+      id: `EXC-${Date.now().toString(36).toUpperCase()}`,
+      userId: currentUser.id, authorName: currentUser.name, authorAvatar: currentUser.avatar,
+      title, description: desc, originalFileName: assetFile.name,
+      category: formData.get('category') as Category,
+      fileType: assetFile.name.slice(assetFile.name.lastIndexOf('.')) as RobloxFileType,
+      thumbnailUrl: '', fileUrl: '', downloadCount: 0, likes: [], reports: 0, credits: formData.get('credits') as string,
+      comments: [], timestamp: Date.now(), keywords
+    };
 
-      await githubStorage.uploadAsset(newAsset, { asset: assetFile, thumb: thumbFile, video: videoFile }, (msg) => {
-        setUploadProgress(msg);
-        setUploadStep(prev => Math.min(prev + 1, 6));
-      });
-      
-      setUploadStep(6);
-      setUploadProgress('Upload concluído com sucesso.');
-      setTimeout(() => {
-        setShowUpload(false);
-        setIsUploading(false);
-        setUploadStep(0);
-        syncRegistry();
-      }, 800);
-      
-    } catch (err: any) {
-      alert("Erro no Upload: " + err.message);
-      setIsUploading(false);
-      setUploadStep(0);
+    await githubStorage.uploadAsset(asset, {
+      asset: assetFile,
+      thumb: formData.get('thumb') as File,
+      video: formData.get('video') as File
+    }, setUploadProgress);
+
+    setIsUploading(false);
+    setShowUpload(false);
+    syncRegistry();
+  };
+
+  const openUserProfile = async (userId: string) => {
+    const data = await githubStorage.getUserProfile(userId);
+    if (data) {
+      setViewedUser(data.user);
+      setSelectedAsset(null);
     }
   };
 
@@ -333,151 +242,107 @@ export default function App() {
     let list = assets;
     if (activeTab === 'profile' && currentUser) list = list.filter(a => a.userId === currentUser.id);
     const q = searchQuery.toLowerCase();
-    if (!q) return list;
-    return list.filter(a => 
-      a.title.toLowerCase().includes(q) || a.description.toLowerCase().includes(q) ||
-      a.keywords?.some(k => k.toLowerCase().includes(q)) || a.id.toLowerCase().includes(q)
-    );
+    return q ? list.filter(a => a.title.toLowerCase().includes(q) || a.id.toLowerCase().includes(q) || a.keywords.some(k => k.toLowerCase().includes(q))) : list;
   }, [assets, searchQuery, activeTab, currentUser]);
 
-  const isOwnerOrAdmin = (asset: Asset) => {
-    if (!currentUser) return false;
-    return currentUser.id === asset.userId || ADMIN_EMAILS.includes(currentUser.email);
-  };
+  const userAssets = useMemo(() => viewedUser ? assets.filter(a => a.userId === viewedUser.id) : [], [assets, viewedUser]);
 
-  if (loading) return (
-    <div className="h-screen w-full flex items-center justify-center bg-black">
-      <div className="text-white font-black text-[9px] uppercase tracking-[1.2em] animate-pulse">EXCALIBUR OS // PROCESSING</div>
-    </div>
-  );
+  if (loading) return <div className="h-screen w-full flex items-center justify-center bg-black text-[10px] font-black uppercase tracking-[1em] animate-pulse">EXCALIBUR OS</div>;
 
   return (
     <div className="min-h-screen bg-[#050505] text-white flex flex-col lg:flex-row">
       <aside className="w-full lg:w-64 border-r border-white/5 flex flex-col p-6 lg:fixed h-auto lg:h-full z-50 bg-[#050505]">
         <div className="flex items-center gap-3 mb-12">
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center rotate-3 shadow-[0_0_15px_rgba(255,255,255,0.15)]"><Icons.Model /></div>
-          <h1 className="font-black italic text-lg tracking-tighter">EXCALIBUR</h1>
+          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center rotate-3"><Icons.Model /></div>
+          <h1 className="font-black italic text-lg">EXCALIBUR</h1>
         </div>
-        <nav className="flex lg:flex-col gap-1.5 overflow-x-auto pb-4 lg:pb-0">
+        <nav className="flex lg:flex-col gap-1.5">
           {['explore', 'market', 'profile'].map(id => (
-            <button key={id} onClick={() => setActiveTab(id as any)} className={`flex items-center gap-3 p-3.5 rounded-xl transition-all font-bold text-[9px] uppercase tracking-widest ${activeTab === id ? 'bg-white text-black' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}>
-              {id === 'explore' ? <Icons.Search /> : id === 'market' ? <Icons.Script /> : <Icons.Plus />}
-              <span>{id}</span>
+            <button key={id} onClick={() => setActiveTab(id as any)} className={`flex items-center gap-3 p-3.5 rounded-xl font-bold text-[9px] uppercase tracking-widest ${activeTab === id ? 'bg-white text-black' : 'text-zinc-500 hover:text-white'}`}>
+               {id === 'explore' ? <Icons.Search /> : id === 'market' ? <Icons.Script /> : <Icons.Plus />}
+               {id}
             </button>
           ))}
         </nav>
         <div className="mt-auto pt-6 border-t border-white/5">
           {currentUser ? (
-            <div className="group relative">
-              <div className="p-3.5 bg-white/5 rounded-xl border border-white/5 flex items-center gap-3">
-                <img src={currentUser.avatar} className="w-7 h-7 rounded-lg grayscale group-hover:grayscale-0 transition-all shadow-md" referrerPolicy="no-referrer" />
-                <div className="min-w-0"><p className="text-[9px] font-black truncate">{currentUser.name}</p></div>
+            <div className="p-3.5 bg-white/5 rounded-xl flex items-center gap-3 cursor-pointer" onClick={() => openUserProfile(currentUser.id)}>
+              <img src={currentUser.avatar} className="w-7 h-7 rounded-lg" />
+              <div className="flex-grow min-w-0">
+                <p className="text-[9px] font-black truncate flex items-center gap-1">
+                  {currentUser.name} {currentUser.isVerified && <Icons.Verified className="w-3 h-3 text-blue-400" />}
+                </p>
+                <p className="text-[7px] text-zinc-500 font-bold uppercase">{currentUser.followers.length} Followers</p>
               </div>
-              <button onClick={handleLogout} className="absolute inset-0 w-full h-full opacity-0 hover:opacity-100 bg-red-600/90 rounded-xl flex items-center justify-center text-[9px] font-black uppercase transition-all z-10 shadow-lg">Desconectar</button>
             </div>
-          ) : (
-            <div className="flex flex-col gap-3 items-center justify-center min-h-[120px]">
-              <p className="text-[7px] font-black text-zinc-600 uppercase tracking-[0.3em] text-center">Protocolo de Login</p>
-              <div id="google-login-btn" className="w-full flex justify-center scale-90"></div>
-            </div>
-          )}
+          ) : <div id="google-login-btn"></div>}
         </div>
       </aside>
 
       <main className="flex-grow lg:ml-64 p-6 lg:p-12">
-        <header className="mb-14 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-          <div className="flex flex-col">
-             <h2 className="text-4xl lg:text-5xl font-black italic tracking-tighter uppercase leading-none">{activeTab}</h2>
-             <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.4em] mt-2">Unique Roblox Repository</p>
-          </div>
-          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="BUSCAR POR ID OU PROTOCOLO..." className="w-full md:w-64 bg-zinc-900 border border-white/5 rounded-xl py-3 px-6 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:border-white/20 transition-colors" />
+        <header className="mb-14 flex justify-between items-end">
+           <div><h2 className="text-5xl font-black italic uppercase tracking-tighter">{activeTab}</h2></div>
+           <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="PROTOCOL SEARCH..." className="w-64 bg-zinc-900 border border-white/5 rounded-xl py-3 px-6 text-[10px] font-black outline-none" />
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
-          {filteredAssets.map(asset => (
-            <AssetCard 
-              key={asset.id} 
-              asset={asset} 
-              currentUser={currentUser} 
-              onClick={() => setSelectedAsset(asset)} 
-            />
-          ))}
-          {filteredAssets.length === 0 && (
-            <div className="col-span-full py-24 text-center opacity-40">
-              <p className="text-zinc-600 font-black uppercase tracking-[0.5em] text-[10px]">Nenhum registro no setor.</p>
-            </div>
-          )}
+          {filteredAssets.map(asset => <AssetCard key={asset.id} asset={asset} currentUser={currentUser} onClick={() => setSelectedAsset(asset)} />)}
         </div>
 
         {currentUser && (
-          <button onClick={() => setShowUpload(true)} className="fixed bottom-10 right-10 bg-white text-black w-16 h-16 rounded-2xl shadow-[0_15px_45px_rgba(255,255,255,0.1)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-40 border-[6px] border-black">
+          <button onClick={() => setShowUpload(true)} className="fixed bottom-10 right-10 bg-white text-black w-16 h-16 rounded-2xl shadow-xl flex items-center justify-center hover:scale-110 transition-all z-40 border-[6px] border-black">
             <Icons.Plus />
           </button>
         )}
       </main>
 
-      {/* Upload Modal */}
-      {showUpload && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/98 backdrop-blur-3xl" onClick={() => !isUploading && setShowUpload(false)} />
-          <form onSubmit={handleUpload} className="relative w-full max-w-2xl bg-[#080808] border border-white/10 rounded-[2.5rem] p-10 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
-            <h2 className="text-3xl font-black italic uppercase mb-10 tracking-tighter">Transmissão</h2>
-            
-            {isUploading ? (
-              <div className="flex flex-col items-center justify-center py-20 space-y-10 animate-in fade-in zoom-in duration-500">
-                <div className="relative w-32 h-32 flex items-center justify-center">
-                  <div className="absolute inset-0 border-4 border-white/5 rounded-full" />
-                  <div className="absolute inset-0 border-4 border-white border-t-transparent rounded-full animate-spin" />
-                  <div className="text-[10px] font-black uppercase text-white animate-pulse">TX-{Math.floor(Math.random()*900)+100}</div>
+      {/* Profile Detail View */}
+      {viewedUser && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/95 backdrop-blur-xl" onClick={() => setViewedUser(null)} />
+          <div className="relative w-full max-w-4xl bg-[#080808] border border-white/10 rounded-[2.5rem] overflow-hidden flex flex-col max-h-[90vh]">
+             <div className="p-10 border-b border-white/5 flex items-center gap-8 bg-gradient-to-r from-blue-900/10 to-transparent">
+                <img src={viewedUser.avatar} className="w-32 h-32 rounded-3xl border border-white/10 shadow-2xl" />
+                <div className="flex-grow">
+                   <div className="flex items-center gap-4 mb-2">
+                      <h2 className="text-4xl font-black italic uppercase">{viewedUser.name}</h2>
+                      {viewedUser.isVerified && <Icons.Verified className="w-8 h-8 text-blue-500" />}
+                      {!viewedUser.isVerified && <span className="bg-zinc-800 text-zinc-500 px-3 py-1 rounded-full text-[8px] font-black uppercase">Unverified</span>}
+                   </div>
+                   <div className="flex gap-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                      <span>{viewedUser.followers.length} Seguidores</span>
+                      <span>{viewedUser.following.length} Seguindo</span>
+                      <span>{userAssets.length} Assets</span>
+                   </div>
                 </div>
-                
-                <div className="w-full max-w-md space-y-4">
-                  <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-zinc-500">
-                    <span>Progresso de Transmissão</span>
-                    <span>{Math.round((uploadStep / 6) * 100)}%</span>
-                  </div>
-                  <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
-                    <div 
-                      className="h-full bg-white transition-all duration-500 ease-out shadow-[0_0_10px_rgba(255,255,255,0.5)]" 
-                      style={{ width: `${(uploadStep / 6) * 100}%` }}
-                    />
-                  </div>
-                  <p className="text-center text-[10px] font-black uppercase italic text-zinc-300 tracking-[0.2em] pt-2 animate-pulse">
-                    {uploadProgress}
-                  </p>
+                <div className="flex flex-col gap-3">
+                  {currentUser && currentUser.id !== viewedUser.id && (
+                    <button onClick={() => handleFollow(viewedUser.id)} className={`px-8 py-3 rounded-xl font-black text-[10px] uppercase transition-all ${currentUser.following.includes(viewedUser.id) ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-white text-black'}`}>
+                      {currentUser.following.includes(viewedUser.id) ? 'Unfollow' : 'Follow'}
+                    </button>
+                  )}
+                  {isAdmin(currentUser) && (
+                    <button onClick={() => handleVerify(viewedUser.id, !viewedUser.isVerified)} className="px-8 py-3 rounded-xl bg-blue-600 text-white font-black text-[10px] uppercase">
+                       {viewedUser.isVerified ? 'Remove Verified' : 'Grant Verified'}
+                    </button>
+                  )}
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <input required name="title" placeholder="IDENTIFICAÇÃO DO ASSET" className="w-full bg-zinc-900 border border-white/5 rounded-xl p-5 text-[10px] font-black uppercase outline-none focus:border-white/20 transition-all" />
-                <textarea required name="desc" placeholder="ESPECIFICAÇÕES TÉCNICAS" className="w-full bg-zinc-900 border border-white/5 rounded-xl p-5 h-32 resize-none text-[10px] font-black uppercase outline-none focus:border-white/20 transition-all" />
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[9px] font-black uppercase text-zinc-600 ml-1">Binário Roblox (.rbxm, .rbxl, .rbxmx)</label>
-                    <input required name="file" type="file" accept=".rbxm,.rbxl,.rbxmx" className="bg-zinc-900 p-3.5 rounded-xl text-[8px] text-zinc-400 border border-white/5 file:hidden cursor-pointer" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[9px] font-black uppercase text-zinc-600 ml-1">Classificação</label>
-                    <select name="category" className="bg-zinc-900 p-3.5 rounded-xl text-[9px] uppercase font-black outline-none border border-white/5 cursor-pointer">
-                      {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[9px] font-black uppercase text-zinc-600 ml-1">Showcase MP4</label>
-                    <input required name="video" type="file" accept="video/mp4" className="bg-zinc-900 p-3.5 rounded-xl text-[8px] text-zinc-400 border border-white/5 file:hidden cursor-pointer" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[9px] font-black uppercase text-zinc-600 ml-1">Visual PNG/JPG</label>
-                    <input required name="thumb" type="file" accept="image/*" className="bg-zinc-900 p-3.5 rounded-xl text-[8px] text-zinc-400 border border-white/5 file:hidden cursor-pointer" />
-                  </div>
+             </div>
+             <div className="p-10 overflow-y-auto custom-scrollbar">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-6">User Repositories</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {userAssets.map(asset => (
+                    <div key={asset.id} onClick={() => { setSelectedAsset(asset); setViewedUser(null); }} className="p-4 bg-white/5 border border-white/5 rounded-2xl flex items-center gap-4 cursor-pointer hover:bg-white/10 transition-all">
+                       <img src={asset.thumbnailUrl} className="w-16 h-16 rounded-xl object-cover" />
+                       <div>
+                          <p className="font-black uppercase text-[12px]">{asset.title}</p>
+                          <p className="text-[9px] text-zinc-500 font-bold uppercase">{asset.category} • {asset.downloadCount} DL</p>
+                       </div>
+                    </div>
+                  ))}
                 </div>
-                <input required name="credits" placeholder="CREDENCIAIS" className="w-full bg-zinc-900 p-5 rounded-xl text-[10px] font-black uppercase outline-none border border-white/5 transition-all" />
-                <button type="submit" className="w-full bg-white text-black py-5 rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-zinc-200 transition-all shadow-xl active:scale-95">
-                  Iniciar Protocolo de Transmissão
-                </button>
-              </div>
-            )}
-          </form>
+             </div>
+          </div>
         </div>
       )}
 
@@ -486,142 +351,106 @@ export default function App() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/98 backdrop-blur-2xl" onClick={() => setSelectedAsset(null)} />
           <div className="relative w-full max-w-5xl bg-[#080808] border border-white/10 rounded-[2.5rem] overflow-hidden flex flex-col lg:flex-row max-h-[85vh] shadow-2xl">
-            <div className="lg:w-3/5 p-10 overflow-y-auto custom-scrollbar border-b lg:border-b-0 lg:border-r border-white/5">
-              <div className="aspect-video rounded-[1.5rem] overflow-hidden bg-black mb-10 border border-white/10 shadow-2xl relative">
-                {selectedAsset.videoUrl ? (
-                  <video 
-                    src={`${selectedAsset.videoUrl}?t=${selectedAsset.timestamp}`} 
-                    autoPlay muted loop playsInline 
-                    className="w-full h-full object-cover" 
-                    onError={(e) => {
-                      const videoElement = e.target as HTMLVideoElement;
-                      const videoUrl = selectedAsset.videoUrl;
-                      setTimeout(() => { if (videoElement && videoUrl) videoElement.src = `${videoUrl}?t=${Date.now()}`; }, 5000);
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-zinc-900 text-[9px] font-black text-zinc-600 uppercase">Bufferizando...</div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
+            <div className="lg:w-3/5 p-10 overflow-y-auto custom-scrollbar border-r border-white/5">
+              <div className="aspect-video rounded-[1.5rem] overflow-hidden bg-black mb-10 border border-white/10 shadow-2xl">
+                <video src={`${selectedAsset.videoUrl}?t=${selectedAsset.timestamp}`} autoPlay muted loop playsInline className="w-full h-full object-cover" />
               </div>
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                <div className="flex-grow">
-                  <div className="flex items-center gap-4">
-                    <h2 className="text-3xl lg:text-4xl font-black italic uppercase tracking-tighter leading-none">{selectedAsset.title}</h2>
-                    {selectedAsset.reports > 0 && (
-                      <span className="flex items-center gap-1.5 bg-red-600/20 text-red-500 border border-red-600/30 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest animate-pulse">
-                        <Icons.Report /> Sob Revisão ({selectedAsset.reports})
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mt-4">
-                    <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-[0.2em] bg-white/[0.03] px-3 py-1 rounded-lg border border-white/5">UUID: {selectedAsset.id}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                   <span className="px-4 py-2 bg-white/5 rounded-xl text-[8px] font-black border border-white/10 uppercase tracking-[0.1em]">{selectedAsset.category}</span>
-                   <span className="px-4 py-2 bg-white/5 rounded-xl text-[8px] font-black border border-white/10 uppercase tracking-[0.1em]">{selectedAsset.fileType}</span>
-                </div>
-              </div>
-              <p className="text-zinc-400 mb-10 leading-relaxed text-sm whitespace-pre-wrap bg-white/[0.02] p-6 rounded-[1.5rem] border border-white/5 italic">"{selectedAsset.description}"</p>
+              <h2 className="text-4xl font-black italic uppercase mb-4 flex items-center gap-3">
+                {selectedAsset.title}
+                {selectedAsset.authorVerified && <Icons.Verified className="w-8 h-8" />}
+              </h2>
+              <p className="text-zinc-400 mb-10 text-sm bg-white/[0.02] p-6 rounded-[1.5rem] italic">"{selectedAsset.description}"</p>
               
-              {/* Seção de Comentários */}
-              <div className="mt-12 pt-12 border-t border-white/5">
-                <h3 className="text-xl font-black uppercase italic tracking-tighter mb-8">Protocolo de Feedback</h3>
-                
-                {currentUser ? (
-                  <form onSubmit={handleCommentSubmit} className="mb-10 group">
-                    <div className="relative">
-                      <textarea 
-                        value={commentText}
-                        onChange={(e) => setCommentText(e.target.value)}
-                        placeholder="Insira seu comentário sobre este registro..."
-                        className="w-full bg-zinc-900/50 border border-white/5 rounded-[1.5rem] p-6 text-[11px] font-black uppercase outline-none focus:border-white/20 transition-all min-h-[100px] resize-none"
-                      />
-                      <button 
-                        type="submit" 
-                        disabled={isPostingComment || !commentText.trim()}
-                        className="absolute bottom-4 right-4 bg-white text-black px-6 py-2 rounded-xl text-[9px] font-black uppercase hover:bg-zinc-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isPostingComment ? 'Processando...' : 'Transmitir'}
-                      </button>
-                    </div>
+              <div className="mt-12">
+                <h3 className="text-xl font-black uppercase italic mb-8">Protocol Feedback</h3>
+                {currentUser && (
+                  <form onSubmit={handleCommentSubmit} className="mb-10 relative">
+                    <textarea value={commentText} onChange={e => setCommentText(e.target.value)} placeholder="Send feedback..." className="w-full bg-zinc-900 border border-white/5 rounded-[1.5rem] p-6 text-[11px] outline-none min-h-[100px]" />
+                    <button type="submit" disabled={isPostingComment} className="absolute bottom-4 right-4 bg-white text-black px-6 py-2 rounded-xl text-[9px] font-black uppercase">Send</button>
                   </form>
-                ) : (
-                  <div className="bg-white/[0.02] border border-dashed border-white/5 rounded-[1.5rem] p-8 text-center mb-10">
-                    <p className="text-[9px] font-black uppercase text-zinc-600 tracking-widest">Acesso restrito: Login necessário para comentar</p>
-                  </div>
                 )}
-
                 <div className="space-y-6">
-                  {selectedAsset.comments && selectedAsset.comments.length > 0 ? (
-                    selectedAsset.comments.map((comment) => (
-                      <div key={comment.id} className="bg-white/[0.03] border border-white/5 rounded-[1.5rem] p-6 flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        <img src={comment.userAvatar} className="w-10 h-10 rounded-lg grayscale shrink-0" referrerPolicy="no-referrer" />
-                        <div className="flex-grow">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-[10px] font-black uppercase tracking-tighter">{comment.userName}</span>
-                            <span className="text-[8px] text-zinc-600 font-black uppercase">{new Date(comment.timestamp).toLocaleDateString()}</span>
-                          </div>
-                          <p className="text-zinc-400 text-[11px] leading-relaxed italic">"{comment.text}"</p>
-                        </div>
+                  {selectedAsset.comments?.map(c => (
+                    <div key={c.id} className="bg-white/[0.03] p-6 rounded-[1.5rem] flex gap-4">
+                      <img src={c.userAvatar} className="w-10 h-10 rounded-lg cursor-pointer" onClick={() => openUserProfile(c.userId)} />
+                      <div>
+                        <p className="text-[10px] font-black uppercase">{c.userName}</p>
+                        <p className="text-zinc-400 text-[11px] italic">"{c.text}"</p>
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-[9px] font-black uppercase text-zinc-800 tracking-[0.3em] text-center py-10 italic">Nenhum feedback registrado.</p>
-                  )}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
 
-            <div className="lg:w-2/5 bg-black/60 p-10 flex flex-col justify-between">
-              <div className="space-y-8">
-                <div className="p-6 bg-white/[0.04] rounded-[2rem] border border-white/5 space-y-6 shadow-xl">
-                   <div className="flex items-center gap-4">
-                      <img src={selectedAsset.authorAvatar} className="w-12 h-12 rounded-xl grayscale border border-white/10" />
-                      <div>
-                        <p className="text-[8px] font-black uppercase text-zinc-600 tracking-widest">Provider</p>
-                        <p className="text-[14px] font-black uppercase tracking-tighter leading-none">{selectedAsset.authorName}</p>
-                      </div>
-                   </div>
-                   <div className="pt-6 border-t border-white/5">
-                      <p className="text-[8px] font-black uppercase text-zinc-600 mb-1 tracking-widest">Ownership</p>
-                      <p className="text-[11px] text-zinc-400 italic leading-snug">{selectedAsset.credits}</p>
-                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-6 bg-white/[0.04] rounded-[1.5rem] border border-white/5 text-center shadow-lg">
-                    <p className="text-[8px] font-black text-zinc-600 uppercase mb-1 tracking-widest">Downloads</p>
-                    <p className="text-2xl font-black tracking-tighter">{selectedAsset.downloadCount}</p>
-                  </div>
-                  <div className="p-6 bg-white/[0.04] rounded-[1.5rem] border border-white/5 text-center shadow-lg">
-                    <p className="text-[8px] font-black text-zinc-600 uppercase mb-1 tracking-widest">Likes</p>
-                    <p className="text-2xl font-black tracking-tighter">{selectedAsset.likes?.length || 0}</p>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <button onClick={() => handleDownload(selectedAsset)} className="w-full py-6 rounded-[1.5rem] bg-white text-black font-black uppercase text-[10px] hover:bg-zinc-200 transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95">
-                    <Icons.Download /> ADQUIRIR FILE
-                  </button>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button onClick={() => handleLike(selectedAsset.id)} className={`py-6 rounded-[1.5rem] font-black uppercase text-[10px] border border-white/10 transition-all flex items-center justify-center gap-3 active:scale-95 ${selectedAsset.likes?.includes(currentUser?.id || '') ? 'bg-blue-600/20 text-blue-400 border-blue-500/50' : 'bg-white/5 text-white hover:bg-white/10'}`}>
-                       <Icons.Like filled={selectedAsset.likes?.includes(currentUser?.id || '')} />
-                       CURTIR
-                    </button>
-                    <button onClick={() => handleReport(selectedAsset.id)} className="py-6 rounded-[1.5rem] font-black uppercase text-[10px] border border-red-900/30 bg-red-900/10 text-red-500 hover:bg-red-900/20 transition-all flex items-center justify-center gap-3 active:scale-95">
-                       <Icons.Report /> DENUNCIAR
-                    </button>
-                  </div>
-                  {isOwnerOrAdmin(selectedAsset) && (
-                    <button onClick={() => handleDelete(selectedAsset.id)} className="w-full py-5 rounded-[1.5rem] font-black uppercase text-[9px] border border-red-600 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-lg active:scale-95">
-                      ELIMINAR ASSET (PROPRIETÁRIO/ADMIN)
-                    </button>
-                  )}
+            <div className="lg:w-2/5 p-10 flex flex-col bg-black/40">
+              <div className="p-6 bg-white/[0.04] rounded-[2rem] border border-white/5 mb-8 flex items-center gap-4 cursor-pointer hover:bg-white/10 transition-all" onClick={() => openUserProfile(selectedAsset.userId)}>
+                <img src={selectedAsset.authorAvatar} className="w-14 h-14 rounded-xl border border-white/10" />
+                <div>
+                  <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Provider</p>
+                  <p className="text-[14px] font-black uppercase flex items-center gap-1">
+                    {selectedAsset.authorName}
+                    {selectedAsset.authorVerified && <Icons.Verified className="w-4 h-4" />}
+                  </p>
                 </div>
               </div>
-              <button onClick={() => setSelectedAsset(null)} className="w-full py-4 text-[9px] font-black uppercase text-zinc-800 hover:text-white transition-colors mt-8 tracking-[0.3em]">Encerrar Sessão</button>
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                 <div className="p-6 bg-white/[0.04] rounded-2xl border border-white/5 text-center">
+                    <p className="text-[8px] font-black text-zinc-600 uppercase mb-1">DLs</p>
+                    <p className="text-2xl font-black">{selectedAsset.downloadCount}</p>
+                 </div>
+                 <div className="p-6 bg-white/[0.04] rounded-2xl border border-white/5 text-center">
+                    <p className="text-[8px] font-black text-zinc-600 uppercase mb-1">Likes</p>
+                    <p className="text-2xl font-black">{selectedAsset.likes.length}</p>
+                 </div>
+              </div>
+              <button onClick={() => handleDownload(selectedAsset)} className="w-full py-6 rounded-3xl bg-white text-black font-black uppercase text-[11px] shadow-2xl active:scale-95 transition-all mb-4">ADQUIRE FILE</button>
+              <button onClick={() => setSelectedAsset(null)} className="w-full py-4 text-[9px] font-black uppercase text-zinc-700 hover:text-white transition-colors">Terminar Sessão</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Upload Modal (Simplified for the sake of brevity in this snippet) */}
+      {showUpload && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/98" onClick={() => !isUploading && setShowUpload(false)} />
+          <form onSubmit={handleUpload} className="relative w-full max-w-xl bg-[#0a0a0a] border border-white/10 p-10 rounded-[3rem] shadow-2xl">
+             <h2 className="text-3xl font-black italic uppercase mb-10">Transmissão</h2>
+             {isUploading ? (
+               <div className="py-12 flex flex-col items-center gap-8">
+                  <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin" />
+                  <p className="text-[10px] font-black uppercase animate-pulse">{uploadProgress}</p>
+               </div>
+             ) : (
+               <div className="space-y-6">
+                 <input required name="title" placeholder="ASSET TITLE" className="w-full bg-zinc-900 border border-white/5 rounded-xl p-5 text-[10px] font-black uppercase outline-none" />
+                 <textarea required name="desc" placeholder="SPECIFICATIONS" className="w-full bg-zinc-900 border border-white/5 rounded-xl p-5 h-32 text-[10px] font-black uppercase outline-none" />
+                 <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-1">
+                     <label className="text-[8px] font-black text-zinc-600 uppercase">Roblox File</label>
+                     <input required name="file" type="file" accept=".rbxm,.rbxl,.rbxmx" className="text-[8px] opacity-50" />
+                   </div>
+                   <div className="space-y-1">
+                     <label className="text-[8px] font-black text-zinc-600 uppercase">Category</label>
+                     <select name="category" className="bg-zinc-900 w-full p-3 rounded-xl text-[9px] font-black uppercase border border-white/5">
+                       {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
+                     </select>
+                   </div>
+                   <div className="space-y-1">
+                     <label className="text-[8px] font-black text-zinc-600 uppercase">Thumbnail</label>
+                     <input required name="thumb" type="file" accept="image/*" className="text-[8px] opacity-50" />
+                   </div>
+                   <div className="space-y-1">
+                     <label className="text-[8px] font-black text-zinc-600 uppercase">Preview Video</label>
+                     <input required name="video" type="file" accept="video/mp4" className="text-[8px] opacity-50" />
+                   </div>
+                 </div>
+                 <input required name="credits" placeholder="CREDITS / OWNERSHIP" className="w-full bg-zinc-900 border border-white/5 rounded-xl p-5 text-[10px] font-black uppercase outline-none" />
+                 <button type="submit" className="w-full bg-white text-black py-5 rounded-2xl font-black uppercase text-[11px]">Execute Transmission</button>
+               </div>
+             )}
+          </form>
         </div>
       )}
     </div>

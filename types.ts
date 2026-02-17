@@ -19,32 +19,36 @@ export interface Comment {
   timestamp: number;
 }
 
-export interface Asset {
-  id: string; // Internal Unique ID
-  userId: string;
-  authorName: string;
-  authorAvatar: string;
-  title: string;
-  originalFileName: string;
-  description: string;
-  category: Category;
-  thumbnailUrl: string;
-  fileUrl: string;
-  videoUrl?: string; // Mandatório agora
-  fileType: RobloxFileType;
-  downloadCount: number;
-  likes: string[]; // User IDs
-  reports: number;
-  credits: string; // Autor original/Créditos
-  comments: Comment[];
-  timestamp: number;
-  keywords: string[];
-}
-
 export interface User {
   id: string;
   name: string;
   email: string;
   avatar: string;
   joinedAt: number;
+  isVerified: boolean;
+  followers: string[]; // IDs de quem segue este usuário
+  following: string[]; // IDs de quem este usuário segue
+}
+
+export interface Asset {
+  id: string;
+  userId: string;
+  authorName: string;
+  authorAvatar: string;
+  authorVerified?: boolean; // Cache da verificação no momento do upload
+  title: string;
+  originalFileName: string;
+  description: string;
+  category: Category;
+  thumbnailUrl: string;
+  fileUrl: string;
+  videoUrl?: string;
+  fileType: RobloxFileType;
+  downloadCount: number;
+  likes: string[];
+  reports: number;
+  credits: string;
+  comments: Comment[];
+  timestamp: number;
+  keywords: string[];
 }
