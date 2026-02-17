@@ -19,6 +19,10 @@ async function toBase64(file: File): Promise<string> {
   });
 }
 
+const getExtension = (filename: string) => {
+  return filename.slice((filename.lastIndexOf(".") - 1 >>> 0) + 2);
+};
+
 export const githubStorage = {
   async ensureBasePath() {
     try {
@@ -40,8 +44,10 @@ export const githubStorage = {
       });
       if (!res.ok) return { assets: [] };
       const json = await res.json();
+      // Decode with UTF-8 support
+      const content = decodeURIComponent(escape(atob(json.content)));
       return { 
-        assets: JSON.parse(atob(json.content)), 
+        assets: JSON.parse(content), 
         sha: json.sha 
       };
     } catch {
@@ -52,9 +58,11 @@ export const githubStorage = {
   async updateRegistry(newAsset: Asset) {
     const { assets, sha } = await this.getRegistry();
     const updatedAssets = [newAsset, ...assets.filter(a => a.id !== newAsset.id)];
+    // Encode with UTF-8 support
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(updatedAssets, null, 2))));
     await this.uploadToRepo(
       REGISTRY_PATH,
-      btoa(JSON.stringify(updatedAssets, null, 2)),
+      content,
       `Update registry: ${newAsset.title}`,
       sha
     );
@@ -66,22 +74,31 @@ export const githubStorage = {
 
     await this.ensureBasePath();
 
-    // Upload binaries
-    await this.uploadToRepo(`${folderPath}/thumb_bin`, await toBase64(files.thumb), `Thumb: ${assetId}`);
-    await this.uploadToRepo(`${folderPath}/video_bin`, await toBase64(files.video), `Video: ${assetId}`);
-    await this.uploadToRepo(`${folderPath}/asset_bin`, await toBase64(files.asset), `File: ${assetId}`);
+    const thumbExt = getExtension(files.thumb.name) || 'png';
+    const videoExt = getExtension(files.video.name) || 'mp4';
+    const assetExt = getExtension(files.asset.name) || 'rbxm';
+
+    const thumbName = `thumbnail.${thumbExt}`;
+    const videoName = `preview.${videoExt}`;
+    const assetName = `file.${assetExt}`;
+
+    // Upload binaries com as extensões corretas
+    await this.uploadToRepo(`${folderPath}/${thumbName}`, await toBase64(files.thumb), `Thumb: ${assetId}`);
+    await this.uploadToRepo(`${folderPath}/${videoName}`, await toBase64(files.video), `Video: ${assetId}`);
+    await this.uploadToRepo(`${folderPath}/${assetName}`, await toBase64(files.asset), `File: ${assetId}`);
 
     const metadata: Asset = {
       ...asset,
-      thumbnailUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${folderPath}/thumb_bin`,
-      videoUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${folderPath}/video_bin`,
-      fileUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${folderPath}/asset_bin`
+      thumbnailUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${folderPath}/${thumbName}`,
+      videoUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${folderPath}/${videoName}`,
+      fileUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${folderPath}/${assetName}`
     };
 
-    // Save individual metadata for backup
-    await this.uploadToRepo(`${folderPath}/metadata.json`, btoa(JSON.stringify(metadata, null, 2)), `Meta: ${assetId}`);
+    // Save individual metadata
+    const metaContent = btoa(unescape(encodeURIComponent(JSON.stringify(metadata, null, 2))));
+    await this.uploadToRepo(`${folderPath}/metadata.json`, metaContent, `Meta: ${assetId}`);
     
-    // Update global registry for fast loading
+    // Update global registry
     await this.updateRegistry(metadata);
     
     return metadata;
@@ -117,9 +134,10 @@ export const githubStorage = {
     const updated = updater(assets[index]);
     assets[index] = updated;
 
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(assets, null, 2))));
     await this.uploadToRepo(
       REGISTRY_PATH,
-      btoa(JSON.stringify(assets, null, 2)),
+      content,
       `Sync Registry: ${assetId}`,
       sha
     );

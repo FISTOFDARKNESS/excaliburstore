@@ -5,11 +5,9 @@ import { Icons } from './constants';
 import { githubStorage } from './services/githubService';
 import { generateKeywords } from './services/geminiService';
 
-// Tipagem para a API do Google
 declare global {
   interface Window {
     google: any;
-    handleGoogleLogin: (response: any) => void;
   }
 }
 
@@ -40,9 +38,7 @@ export default function App() {
   const [showUpload, setShowUpload] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
-  const [commentText, setCommentText] = useState('');
 
-  // Sincronização com o GitHub
   const syncRegistry = useCallback(async () => {
     try {
       const list = await githubStorage.getAllAssets();
@@ -51,45 +47,6 @@ export default function App() {
       console.error("Sync error:", e);
     }
   }, []);
-
-  // Inicialização do Google Sign-In
-  useEffect(() => {
-    const initGoogle = () => {
-      if (window.google && !currentUser) {
-        window.google.accounts.id.initialize({
-          client_id: "308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com", // SUBSTITUA PELO SEU ID
-          callback: (response: any) => {
-            const payload = decodeJWT(response.credential);
-            if (payload) {
-              const user: User = {
-                id: payload.sub,
-                name: payload.name,
-                email: payload.email,
-                avatar: payload.picture,
-                joinedAt: Date.now()
-              };
-              setCurrentUser(user);
-              localStorage.setItem('ex_session', JSON.stringify(user));
-            }
-          }
-        });
-
-        const btnContainer = document.getElementById('google-login-container');
-        if (btnContainer) {
-          window.google.accounts.id.renderButton(btnContainer, {
-            theme: 'filled_black',
-            size: 'large',
-            shape: 'pill',
-            width: '240'
-          });
-        }
-      }
-    };
-
-    // Pequeno delay para garantir que o script carregou
-    const timer = setTimeout(initGoogle, 1000);
-    return () => clearTimeout(timer);
-  }, [currentUser]);
 
   useEffect(() => {
     const init = async () => {
@@ -100,6 +57,47 @@ export default function App() {
     };
     init();
   }, [syncRegistry]);
+
+  // Google Login Initialization
+  useEffect(() => {
+    const handleCredentialResponse = (response: any) => {
+      const payload = decodeJWT(response.credential);
+      if (payload) {
+        const user: User = {
+          id: payload.sub,
+          name: payload.name,
+          email: payload.email,
+          avatar: payload.picture,
+          joinedAt: Date.now()
+        };
+        setCurrentUser(user);
+        localStorage.setItem('ex_session', JSON.stringify(user));
+      }
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      if (window.google && !currentUser) {
+        window.google.accounts.id.initialize({
+          client_id: "308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com",
+          callback: handleCredentialResponse,
+        });
+        const container = document.getElementById('google-login-btn');
+        if (container) {
+          window.google.accounts.id.renderButton(container, {
+            theme: 'filled_black',
+            size: 'large',
+            shape: 'pill',
+            width: '240'
+          });
+        }
+      }
+    };
+    document.head.appendChild(script);
+  }, [currentUser]);
 
   const handleLogout = () => {
     setCurrentUser(null);
@@ -137,20 +135,23 @@ export default function App() {
     if (!assetFile || !thumbFile || !videoFile) return alert("Todos os arquivos são obrigatórios.");
 
     setIsUploading(true);
-    setUploadProgress('IA: Analisando...');
+    setUploadProgress('IA: Gerando metadados...');
 
     try {
-      const keywords = await generateKeywords(formData.get('title') as string, formData.get('desc') as string);
-      setUploadProgress('Sincronizando...');
+      const title = formData.get('title') as string;
+      const desc = formData.get('desc') as string;
+      const keywords = await generateKeywords(title, desc);
+      
+      setUploadProgress('Fazendo upload...');
 
       const newAsset: Asset = {
         id: crypto.randomUUID(),
         userId: currentUser.id,
         authorName: currentUser.name,
         authorAvatar: currentUser.avatar,
-        title: formData.get('title') as string,
+        title: title,
         originalFileName: assetFile.name,
-        description: formData.get('desc') as string,
+        description: desc,
         category: formData.get('category') as Category,
         thumbnailUrl: '',
         fileUrl: '',
@@ -170,7 +171,7 @@ export default function App() {
       setIsUploading(false);
       await syncRegistry();
     } catch (err: any) {
-      alert("Erro: " + err.message);
+      alert("Erro no Upload: " + err.message);
       setIsUploading(false);
     }
   };
@@ -180,18 +181,20 @@ export default function App() {
     if (activeTab === 'profile' && currentUser) list = list.filter(a => a.userId === currentUser.id);
     const q = searchQuery.toLowerCase();
     if (!q) return list;
-    return list.filter(a => a.title.toLowerCase().includes(q) || a.description.toLowerCase().includes(q));
+    return list.filter(a => 
+      a.title.toLowerCase().includes(q) || 
+      a.description.toLowerCase().includes(q) ||
+      a.keywords?.some(k => k.toLowerCase().includes(q))
+    );
   }, [assets, searchQuery, activeTab, currentUser]);
 
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-black">
-        <div className="text-white font-black text-xs uppercase tracking-[1em] animate-pulse">
-          Excalibur OS // Loading
-        </div>
+  if (loading) return (
+    <div className="h-screen w-full flex items-center justify-center bg-black">
+      <div className="text-white font-black text-xs uppercase tracking-[1em] animate-pulse">
+        Excalibur OS // Loading
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[#050505] text-white flex flex-col lg:flex-row">
@@ -228,9 +231,9 @@ export default function App() {
               <button onClick={handleLogout} className="absolute inset-0 w-full h-full opacity-0 hover:opacity-100 bg-red-600/90 rounded-2xl flex items-center justify-center text-[10px] font-black uppercase transition-all z-10">Sair</button>
             </div>
           ) : (
-            <div className="flex flex-col gap-4 items-center">
+            <div className="flex flex-col gap-4">
               <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest text-center">Acesse sua conta</p>
-              <div id="google-login-container" className="w-full flex justify-center min-h-[50px]"></div>
+              <div id="google-login-btn"></div>
             </div>
           )}
         </div>
@@ -281,24 +284,33 @@ export default function App() {
           <form onSubmit={handleUpload} className="relative w-full max-w-3xl bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-12 max-h-[90vh] overflow-y-auto custom-scrollbar">
             <h2 className="text-3xl font-black italic uppercase mb-12 tracking-tighter">Novo Deploy</h2>
             <div className="space-y-8">
-              <input required name="title" placeholder="Título" className="w-full bg-zinc-900 border border-white/5 rounded-2xl p-4 text-[11px] font-black uppercase" />
-              <textarea required name="desc" placeholder="Descrição" className="w-full bg-zinc-900 border border-white/5 rounded-2xl p-4 h-32 resize-none text-[11px] font-black uppercase" />
+              <input required name="title" placeholder="TÍTULO" className="w-full bg-zinc-900 border border-white/5 rounded-2xl p-4 text-[11px] font-black uppercase outline-none focus:border-white/20" />
+              <textarea required name="desc" placeholder="DESCRIÇÃO" className="w-full bg-zinc-900 border border-white/5 rounded-2xl p-4 h-32 resize-none text-[11px] font-black uppercase outline-none focus:border-white/20" />
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black uppercase text-zinc-600">Arquivo (.rbxm/.rbxl)</label>
-                  <input required name="file" type="file" accept=".rbxm,.rbxl" className="bg-zinc-900 p-3 rounded-xl text-[8px]" />
+                  <input required name="file" type="file" accept=".rbxm,.rbxl" className="bg-zinc-900 p-3 rounded-xl text-[8px] text-zinc-400" />
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black uppercase text-zinc-600">Categoria</label>
-                  <select name="category" className="bg-zinc-900 p-3 rounded-xl text-[9px] uppercase font-black">
+                  <select name="category" className="bg-zinc-900 p-3 rounded-xl text-[9px] uppercase font-black outline-none border border-white/5">
                     {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
-                <input required name="video" type="file" accept="video/mp4" className="bg-zinc-900 p-3 rounded-xl text-[8px]" />
-                <input required name="thumb" type="file" accept="image/*" className="bg-zinc-900 p-3 rounded-xl text-[8px]" />
-                <input required name="credits" placeholder="Créditos" className="bg-zinc-900 p-4 rounded-2xl text-[10px] font-black uppercase col-span-2" />
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black uppercase text-zinc-600">Preview Vídeo (MP4)</label>
+                  <input required name="video" type="file" accept="video/mp4" className="bg-zinc-900 p-3 rounded-xl text-[8px] text-zinc-400" />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black uppercase text-zinc-600">Thumbnail (PNG/JPG)</label>
+                  <input required name="thumb" type="file" accept="image/*" className="bg-zinc-900 p-3 rounded-xl text-[8px] text-zinc-400" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-[9px] font-black uppercase text-zinc-600 mb-2 block">Créditos</label>
+                  <input required name="credits" placeholder="AUTOR OU CRÉDITOS" className="w-full bg-zinc-900 p-4 rounded-2xl text-[10px] font-black uppercase outline-none border border-white/5" />
+                </div>
               </div>
-              <button disabled={isUploading} className="w-full bg-white text-black py-6 rounded-2xl font-black uppercase text-xs tracking-widest">
+              <button disabled={isUploading} className="w-full bg-white text-black py-6 rounded-2xl font-black uppercase text-xs tracking-widest hover:brightness-90 transition-all disabled:opacity-50">
                 {isUploading ? uploadProgress : 'Iniciar Sincronização'}
               </button>
             </div>
@@ -313,19 +325,42 @@ export default function App() {
           <div className="relative w-full max-w-6xl bg-[#080808] border border-white/10 rounded-[3rem] overflow-hidden flex flex-col lg:flex-row max-h-[90vh]">
             <div className="lg:w-2/3 p-12 overflow-y-auto custom-scrollbar">
               <div className="aspect-video rounded-3xl overflow-hidden bg-black mb-12">
-                <video src={selectedAsset.videoUrl} autoPlay muted loop className="w-full h-full object-cover" />
+                <video src={selectedAsset.videoUrl} autoPlay muted loop playsInline className="w-full h-full object-cover" />
               </div>
               <h2 className="text-4xl font-black italic uppercase tracking-tighter mb-4">{selectedAsset.title}</h2>
-              <p className="text-zinc-500 mb-8 leading-relaxed">{selectedAsset.description}</p>
+              <p className="text-zinc-500 mb-8 leading-relaxed whitespace-pre-wrap">{selectedAsset.description}</p>
+              
+              <div className="flex flex-wrap gap-2">
+                {selectedAsset.keywords?.map(k => (
+                  <span key={k} className="text-[8px] font-black uppercase tracking-widest bg-white/5 text-zinc-400 px-3 py-1 rounded-lg">#{k}</span>
+                ))}
+              </div>
             </div>
-            <div className="lg:w-1/3 bg-zinc-900/30 p-12 border-l border-white/5 space-y-8">
-              <button onClick={() => handleDownload(selectedAsset)} className="w-full py-6 rounded-2xl bg-white text-black font-black uppercase text-xs">
-                DOWNLOAD {selectedAsset.fileType}
-              </button>
-              <button onClick={() => handleLike(selectedAsset.id)} className="w-full py-6 rounded-2xl bg-white/5 text-white font-black uppercase text-xs border border-white/10">
-                LIKE ({selectedAsset.likes?.length || 0})
-              </button>
-              <button onClick={() => setSelectedAsset(null)} className="w-full py-4 text-[10px] font-black uppercase text-zinc-600">Fechar</button>
+            <div className="lg:w-1/3 bg-zinc-900/30 p-12 border-l border-white/5 space-y-8 flex flex-col">
+              <div className="space-y-4">
+                <button onClick={() => handleDownload(selectedAsset)} className="w-full py-6 rounded-2xl bg-white text-black font-black uppercase text-xs hover:brightness-90 transition-all">
+                  DOWNLOAD {selectedAsset.fileType}
+                </button>
+                <button onClick={() => handleLike(selectedAsset.id)} className={`w-full py-6 rounded-2xl font-black uppercase text-xs border border-white/10 transition-all ${selectedAsset.likes?.includes(currentUser?.id || '') ? 'bg-blue-600 text-white' : 'bg-white/5 text-white'}`}>
+                   {selectedAsset.likes?.includes(currentUser?.id || '') ? 'CURTIDO' : 'CURTIR'} ({selectedAsset.likes?.length || 0})
+                </button>
+              </div>
+              
+              <div className="flex-grow space-y-4 border-t border-white/5 pt-8">
+                 <div className="flex items-center gap-3">
+                    <img src={selectedAsset.authorAvatar} className="w-8 h-8 rounded-lg grayscale" />
+                    <div>
+                      <p className="text-[9px] font-black uppercase text-zinc-600">Autor</p>
+                      <p className="text-[11px] font-black uppercase text-white">{selectedAsset.authorName}</p>
+                    </div>
+                 </div>
+                 <div>
+                    <p className="text-[9px] font-black uppercase text-zinc-600 mb-1">Créditos</p>
+                    <p className="text-[11px] text-zinc-400 italic leading-snug">{selectedAsset.credits}</p>
+                 </div>
+              </div>
+
+              <button onClick={() => setSelectedAsset(null)} className="w-full py-4 text-[10px] font-black uppercase text-zinc-600 hover:text-white transition-colors">Fechar</button>
             </div>
           </div>
         </div>
