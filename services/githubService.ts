@@ -91,7 +91,7 @@ export const githubStorage = {
       ...asset,
       thumbnailUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${folderPath}/${thumbName}`,
       videoUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${folderPath}/${videoName}`,
-      fileUrl: `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${folderPath}/${assetName}`
+      fileUrl: `https://github.com/${OWNER}/${REPO}/raw/main/${folderPath}/${assetName}`
     };
 
     // Save individual metadata
