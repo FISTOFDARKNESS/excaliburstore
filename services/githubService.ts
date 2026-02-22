@@ -131,5 +131,62 @@ export const githubService = {
 
     await this.uploadFile(`${folder}/metadata.json`, JSON.stringify(finalAsset, null, 2), `Upload Meta: ${asset.id}`);
     return finalAsset;
+  },
+
+  async updateAssetMetadata(assetId: string, updater: (current: Asset) => Asset) {
+    const data = await this.fetchFile(`${BASE_PATH}/${assetId}/metadata.json`);
+    if (!data) throw new Error("Asset not found");
+    const updated = updater(data.content as Asset);
+    await this.uploadFile(`${BASE_PATH}/${assetId}/metadata.json`, JSON.stringify(updated, null, 2), `Update: ${assetId}`, data.sha);
+    return updated;
+  },
+
+  async toggleLike(assetId: string, userId: string) {
+    return this.updateAssetMetadata(assetId, (current) => ({
+      ...current,
+      likes: current.likes.includes(userId) ? current.likes.filter(id => id !== userId) : [...current.likes, userId]
+    }));
+  },
+
+  async toggleFollow(currentUserId: string, targetUserId: string) {
+    if (currentUserId === targetUserId) throw new Error("Cannot follow self");
+
+    const currentUserData = await this.getUserProfile(currentUserId);
+    const targetUserData = await this.getUserProfile(targetUserId);
+
+    if (!currentUserData || !targetUserData) throw new Error("User(s) not found");
+
+    const isFollowing = currentUserData.user.following.includes(targetUserId);
+
+    const updatedCurrentUser: User = {
+      ...currentUserData.user,
+      following: isFollowing 
+        ? currentUserData.user.following.filter(id => id !== targetUserId)
+        : [...currentUserData.user.following, targetUserId]
+    };
+
+    const updatedTargetUser: User = {
+      ...targetUserData.user,
+      followers: isFollowing
+        ? targetUserData.user.followers.filter(id => id !== currentUserId)
+        : [...targetUserData.user.followers, currentUserId]
+    };
+
+    await Promise.all([
+      this.uploadFile(
+        `${USERS_PATH}/${currentUserId}/profile.json`,
+        JSON.stringify(updatedCurrentUser, null, 2),
+        `Toggle Follow: ${targetUserId}`,
+        currentUserData.sha
+      ),
+      this.uploadFile(
+        `${USERS_PATH}/${targetUserId}/profile.json`,
+        JSON.stringify(updatedTargetUser, null, 2),
+        `Update Followers: ${currentUserId}`,
+        targetUserData.sha
+      )
+    ]);
+
+    return { updatedCurrentUser, updatedTargetUser };
   }
 };

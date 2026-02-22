@@ -139,6 +139,28 @@ const MainApp = () => {
     }
   };
 
+  const handleLike = async (asset: Asset) => {
+    if (!user) return alert("Identify required.");
+    try {
+      const updated = await githubService.toggleLike(asset.id, user.id);
+      setAssets(prev => prev.map(a => a.id === asset.id ? updated : a));
+      if (selectedAsset?.id === asset.id) setSelectedAsset(updated);
+    } catch (err) {
+      alert("Like Protocol Failed.");
+    }
+  };
+
+  const handleFollow = async (targetUserId: string) => {
+    if (!user) return alert("Identify required.");
+    if (user.id === targetUserId) return;
+    try {
+      const { updatedCurrentUser } = await githubService.toggleFollow(user.id, targetUserId);
+      login(updatedCurrentUser); // Update local state and storage
+    } catch (err) {
+      alert("Follow Protocol Failed.");
+    }
+  };
+
   const filteredAssets = useMemo(() => {
     let list = assets;
     if (activeTab === 'profile' && user) list = list.filter(a => a.userId === user.id);
@@ -351,22 +373,43 @@ const MainApp = () => {
                 <div className="space-y-10">
                   <div className="p-6 glass-panel rounded-[2rem] flex items-center gap-4 border-none bg-white/[0.03]">
                     <img src={selectedAsset.authorAvatar} className="w-12 h-12 rounded-xl border border-white/10 grayscale" referrerPolicy="no-referrer" />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-grow">
                       <p className="text-[14px] font-black uppercase truncate flex items-center gap-2 text-white">
                         {selectedAsset.authorName} {selectedAsset.authorVerified && <CheckCircle className="w-4 h-4 text-blue-500" />}
                       </p>
                       <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-1">Verified Unit</p>
                     </div>
+                    {user && user.id !== selectedAsset.userId && (
+                      <button 
+                        onClick={() => handleFollow(selectedAsset.userId)}
+                        className={cn(
+                          "px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all",
+                          user.following.includes(selectedAsset.userId) 
+                            ? "bg-white/10 text-white border border-white/10" 
+                            : "bg-white text-black hover:scale-105"
+                        )}
+                      >
+                        {user.following.includes(selectedAsset.userId) ? 'Following' : 'Follow'}
+                      </button>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-6 glass-panel rounded-3xl text-center border-white/5">
                       <p className="text-3xl font-black leading-none text-white">{selectedAsset.downloadCount}</p>
                       <p className="text-[9px] font-black uppercase tracking-widest text-zinc-700 mt-2">Syncs</p>
                     </div>
-                    <div className="p-6 glass-panel rounded-3xl text-center border-white/5">
-                      <p className="text-3xl font-black leading-none text-white">{selectedAsset.likes.length}</p>
+                    <button 
+                      onClick={() => handleLike(selectedAsset)}
+                      className={cn(
+                        "p-6 glass-panel rounded-3xl text-center transition-all",
+                        selectedAsset.likes.includes(user?.id || '') ? "border-red-500/50 bg-red-500/5" : "border-white/5"
+                      )}
+                    >
+                      <p className={cn("text-3xl font-black leading-none", selectedAsset.likes.includes(user?.id || '') ? "text-red-500" : "text-white")}>
+                        {selectedAsset.likes.length}
+                      </p>
                       <p className="text-[9px] font-black uppercase tracking-widest text-zinc-700 mt-2">Loves</p>
-                    </div>
+                    </button>
                   </div>
                   <button onClick={() => window.open(selectedAsset.fileUrl)} className="btn-primary-glitch w-full">Sync Binary</button>
                 </div>
