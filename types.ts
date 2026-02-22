@@ -12,15 +12,6 @@ export type TabId = 'explore' | 'verified' | 'market' | 'profile' | 'admin';
 
 export type RobloxFileType = '.rbxm' | '.rbxl' | '.rbxmx';
 
-export interface Comment {
-  id: string;
-  userId: string;
-  userName: string;
-  userAvatar: string;
-  text: string;
-  timestamp: number;
-}
-
 export interface User {
   id: string;
   name: string;
@@ -28,8 +19,8 @@ export interface User {
   avatar: string;
   joinedAt: number;
   isVerified: boolean;
-  isBanned?: boolean;
-  isAdmin: boolean; // Campo persistido para privilégios administrativos
+  isBanned: boolean;
+  isAdmin: boolean;
   followers: string[];
   following: string[];
 }
@@ -39,9 +30,8 @@ export interface Asset {
   userId: string;
   authorName: string;
   authorAvatar: string;
-  authorVerified?: boolean;
+  authorVerified: boolean;
   title: string;
-  originalFileName: string;
   description: string;
   category: Category;
   thumbnailUrl: string;
@@ -52,7 +42,12 @@ export interface Asset {
   likes: string[];
   reports: number;
   credits: string;
-  comments: Comment[];
   timestamp: number;
   keywords: string[];
+}
+
+export interface AuthState {
+  user: User | null;
+  loading: boolean;
+  isAdmin: boolean;
 }

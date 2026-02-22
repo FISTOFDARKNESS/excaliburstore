@@ -1,9 +1,15 @@
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Asset, User, Category, RobloxFileType, TabId } from './types';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { AuthProvider, useAuth } from './AuthContext';
+import { HeroScene } from './components/HeroScene';
 import { Icons } from './constants';
-import { githubStorage } from './services/githubService';
-import { generateKeywords, semanticSearch } from './services/geminiService';
+import { Asset, Category, TabId, User } from './types';
+import { githubService } from './services/githubService';
+import { geminiService } from './services/geminiService';
+import { motion, AnimatePresence } from 'motion/react';
+import { Search, Plus, LogOut, Shield, CheckCircle, Download, Heart, X, Upload, FileCode, ImageIcon, Video } from 'lucide-react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 declare global {
   interface Window {
@@ -11,268 +17,254 @@ declare global {
   }
 }
 
-const ADMIN_EMAILS = ['kaioadrik08@gmail.com'];
-const ALLOWED_ROBLOX_EXTENSIONS = ['.rbxm', '.rbxl', '.rbxmx'];
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
-const AssetCard: React.FC<{ asset: Asset, currentUser: User | null, onClick: () => void }> = ({ asset, currentUser, onClick }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (isHovered && videoRef.current) {
-      videoRef.current.play().catch(() => {});
-    } else if (!isHovered && videoRef.current) {
-      videoRef.current.pause();
-    }
-  }, [isHovered]);
-
-  const thumbUrl = `${asset.thumbnailUrl}?t=${asset.timestamp}`;
-  const videoUrl = asset.videoUrl ? `${asset.videoUrl}?t=${asset.timestamp}` : '';
-
+const AssetCard: React.FC<{ asset: Asset, onClick: () => void }> = ({ asset, onClick }) => {
   return (
-    <div 
+    <motion.div 
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -5 }}
       onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className={`premium-card h-[380px] flex flex-col group cursor-pointer ${asset.reports > 5 ? 'grayscale opacity-30 pointer-events-none' : ''}`}
+      className="premium-card group cursor-pointer h-full flex flex-col"
     >
-      <div className="h-[220px] relative overflow-hidden bg-black">
+      <div className="relative aspect-video overflow-hidden bg-zinc-900">
         <img 
-          src={thumbUrl} 
-          className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ${isHovered && videoUrl ? 'opacity-0 scale-110' : 'opacity-100 scale-100'}`}
+          src={asset.thumbnailUrl} 
           alt={asset.title}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
-        {videoUrl && (
-          <video 
-            ref={videoRef}
-            src={videoUrl} 
-            muted 
-            loop 
-            playsInline 
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${isHovered ? 'opacity-100' : 'opacity-0'}`} 
-          />
-        )}
-        <div className="absolute top-4 left-4 flex items-center gap-2 z-10">
-          <div className="bg-black/90 backdrop-blur-xl px-3 py-1 rounded-lg border border-white/10 text-[8px] font-black uppercase tracking-widest text-zinc-400">
+        <div className="absolute top-3 left-3 flex gap-2">
+          <span className="px-2 py-1 bg-black/80 backdrop-blur-md border border-white/10 rounded-md text-[8px] font-black uppercase tracking-widest text-zinc-400">
             {asset.category}
-          </div>
+          </span>
           {asset.authorVerified && (
-             <div className="bg-blue-500/20 backdrop-blur-xl p-1.5 rounded-lg border border-blue-500/30">
-               <Icons.Verified className="w-3.5 h-3.5 text-blue-400" />
-             </div>
+            <CheckCircle className="w-4 h-4 text-blue-500 fill-blue-500/20" />
           )}
         </div>
       </div>
-
-      <div className="p-6 flex flex-col flex-grow justify-between">
-        <div>
-          <h3 className={`text-[15px] font-black uppercase italic tracking-tight truncate transition-colors ${isHovered ? 'text-white' : 'text-zinc-200'}`}>
-            {asset.title}
-          </h3>
-          <div className="flex items-center gap-3 mt-3 opacity-60 group-hover:opacity-100 transition-opacity">
-            <img src={asset.authorAvatar} className="w-5 h-5 rounded-md grayscale border border-white/10" referrerPolicy="no-referrer" />
-            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest truncate">{asset.authorName}</span>
-          </div>
+      <div className="p-5 flex flex-col flex-grow">
+        <h3 className="text-sm font-black uppercase tracking-tight text-white group-hover:text-brand-blue transition-colors truncate">
+          {asset.title}
+        </h3>
+        <div className="mt-2 flex items-center gap-2">
+          <img src={asset.authorAvatar} className="w-4 h-4 rounded-full grayscale" referrerPolicy="no-referrer" />
+          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest truncate">{asset.authorName}</span>
         </div>
-
-        <div className="flex justify-between items-center pt-4 border-t border-white/5">
-          <div className="flex gap-5">
-            <div className="flex items-center gap-1.5">
-              <Icons.Like filled={asset.likes?.includes(currentUser?.id || '')} className={`w-4 h-4 ${asset.likes?.includes(currentUser?.id || '') ? 'text-brand-red' : 'text-zinc-700'}`} />
-              <span className="text-[10px] font-black text-zinc-600">{asset.likes?.length || 0}</span>
+        <div className="mt-auto pt-4 flex justify-between items-center border-t border-white/5">
+          <div className="flex gap-4">
+            <div className="flex items-center gap-1">
+              <Heart className="w-3 h-3 text-zinc-700" />
+              <span className="text-[10px] font-bold text-zinc-600">{asset.likes.length}</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Icons.Download className="w-4 h-4 text-zinc-700" />
-              <span className="text-[10px] font-black text-zinc-600">{asset.downloadCount || 0}</span>
+            <div className="flex items-center gap-1">
+              <Download className="w-3 h-3 text-zinc-700" />
+              <span className="text-[10px] font-bold text-zinc-600">{asset.downloadCount}</span>
             </div>
           </div>
-          <span className="text-[8px] font-mono text-zinc-800 tracking-tighter">HEX_{asset.id.split('-').pop()}</span>
+          <span className="text-[8px] font-mono text-zinc-800">#{asset.id.slice(-4)}</span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
-export default function App() {
+const MainApp = () => {
+  const { user, loading: authLoading, isAdmin, login, logout } = useAuth();
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabId>('explore');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedTerms, setExpandedTerms] = useState<string[]>([]);
   const [isExpanding, setIsExpanding] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabId>('explore');
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
 
-  const isAdmin = (user: User | null) => user ? (user.isAdmin || ADMIN_EMAILS.includes(user.email)) : false;
-
-  const syncRegistry = useCallback(async (isManual = false) => {
-    if (isManual) setIsRefreshing(true);
-    try {
-      const list = await githubStorage.getAllAssets();
-      setAssets(list.sort((a, b) => b.timestamp - a.timestamp));
-    } catch (e) { 
-      console.error(e); 
-    } finally {
-      if (isManual) setIsRefreshing(false);
-    }
+  const fetchAssets = useCallback(async () => {
+    const list = await githubService.getAllAssets();
+    setAssets(list.sort((a, b) => b.timestamp - a.timestamp));
+    setLoading(false);
   }, []);
 
   useEffect(() => {
-    const init = async () => {
-      await syncRegistry();
-      const session = localStorage.getItem('ex_session_clean');
-      if (session) {
-        try {
-          const u = JSON.parse(session);
-          const fresh = await githubStorage.getUserProfile(u.id);
-          if (fresh && !fresh.user.isBanned) {
-            setCurrentUser(fresh.user);
-          } else {
-            localStorage.removeItem('ex_session_clean');
-          }
-        } catch { localStorage.removeItem('ex_session_clean'); }
-      }
-      setLoading(false);
-    };
-    init();
-  }, [syncRegistry]);
+    fetchAssets();
+  }, [fetchAssets]);
 
   useEffect(() => {
-    if (currentUser) return;
-    const renderBtn = () => {
-      const btn = document.getElementById('google-login-btn');
-      if (btn && window.google?.accounts?.id) {
+    if (user) return;
+    const initGoogle = () => {
+      if (window.google?.accounts?.id) {
         window.google.accounts.id.initialize({
           client_id: "308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com",
           callback: async (response: any) => {
             const payload = JSON.parse(atob(response.credential.split('.')[1]));
-            const user = await githubStorage.syncUserProfile({
+            await login({
               id: payload.sub,
               name: payload.name,
               email: payload.email,
               avatar: payload.picture
             });
-            setCurrentUser(user);
-            localStorage.setItem('ex_session_clean', JSON.stringify(user));
           },
         });
-        window.google.accounts.id.renderButton(btn, { theme: 'filled_black', size: 'large', shape: 'pill', width: 220 });
+        window.google.accounts.id.renderButton(
+          document.getElementById('google-btn'),
+          { theme: 'filled_black', size: 'large', shape: 'pill', width: 240 }
+        );
       }
     };
-    const interval = setInterval(() => { if (window.google?.accounts?.id) { renderBtn(); clearInterval(interval); } }, 1000);
-    return () => clearInterval(interval);
-  }, [currentUser]);
-
-  const handleLogout = () => { if (confirm("Terminate Session?")) { setCurrentUser(null); localStorage.removeItem('ex_session_clean'); window.location.reload(); } };
+    const timer = setInterval(() => {
+      if (window.google?.accounts?.id) {
+        initGoogle();
+        clearInterval(timer);
+      }
+    }, 500);
+    return () => clearInterval(timer);
+  }, [user, login]);
 
   const handleAiSearch = async () => {
     if (!searchQuery.trim() || isExpanding) return;
     setIsExpanding(true);
     try {
-      const terms = await semanticSearch(searchQuery);
+      const terms = await geminiService.expandQuery(searchQuery);
       setExpandedTerms(terms);
-    } catch (e) { console.error(e); } finally { setIsExpanding(false); }
-  };
-
-  const handleDownload = async (asset: Asset) => {
-    if (!currentUser) return alert("Identify required.");
-    const finalUrl = `${asset.fileUrl}?t=${Date.now()}`;
-    window.open(finalUrl, '_blank');
-    const updated = await githubStorage.incrementDownload(asset.id);
-    setAssets(prev => prev.map(a => a.id === asset.id ? updated : a));
-    if (selectedAsset?.id === asset.id) setSelectedAsset(updated);
-  };
-
-  const handleLike = async (asset: Asset) => {
-    if (!currentUser) return alert("Identify required.");
-    const updated = await githubStorage.toggleLike(asset.id, currentUser.id);
-    setAssets(prev => prev.map(a => a.id === asset.id ? updated : a));
-    if (selectedAsset?.id === asset.id) setSelectedAsset(updated);
-  };
-
-  const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!currentUser) return;
-    const formData = new FormData(e.currentTarget);
-    const assetFile = formData.get('file') as File;
-    const thumbFile = formData.get('thumb') as File;
-    const videoFile = formData.get('video') as File;
-    if (!ALLOWED_ROBLOX_EXTENSIONS.some(ext => assetFile.name.toLowerCase().endsWith(ext))) return alert("Invalid Format.");
-    setIsUploading(true); setUploadProgress("AI Analyzing DNA...");
-    try {
-      const title = formData.get('title') as string;
-      const desc = formData.get('desc') as string;
-      const keywords = await generateKeywords(title, desc);
-      const asset: Asset = {
-        id: `EXC-${Date.now().toString(36).toUpperCase()}`,
-        userId: currentUser.id, authorName: currentUser.name, authorAvatar: currentUser.avatar,
-        title, description: desc, originalFileName: assetFile.name,
-        category: formData.get('category') as Category,
-        fileType: assetFile.name.slice(assetFile.name.lastIndexOf('.')) as RobloxFileType,
-        thumbnailUrl: '', fileUrl: '', downloadCount: 0, likes: [], reports: 0, credits: formData.get('credits') as string,
-        comments: [], timestamp: Date.now(), keywords,
-        authorVerified: currentUser.isVerified
-      };
-      await githubStorage.uploadAsset(asset, { asset: assetFile, thumb: thumbFile, video: videoFile }, (msg) => { setUploadProgress(msg); });
-      setIsUploading(false); setShowUpload(false); syncRegistry(true);
-    } catch (err) { alert("Uplink Failed."); setIsUploading(false); }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsExpanding(false);
+    }
   };
 
   const filteredAssets = useMemo(() => {
     let list = assets;
-    if (activeTab === 'profile' && currentUser) list = list.filter(a => a.userId === currentUser.id);
+    if (activeTab === 'profile' && user) list = list.filter(a => a.userId === user.id);
     else if (activeTab === 'verified') list = list.filter(a => a.authorVerified);
+    
     const q = searchQuery.toLowerCase();
     if (!q) return list;
+    
     return list.filter(a => {
-      const basic = a.title.toLowerCase().includes(q) || a.keywords.some(k => k.toLowerCase().includes(q));
+      const basicMatch = a.title.toLowerCase().includes(q) || a.keywords.some(k => k.toLowerCase().includes(q));
       const aiMatch = expandedTerms.some(t => a.title.toLowerCase().includes(t.toLowerCase()) || a.keywords.some(k => k.toLowerCase().includes(t.toLowerCase())));
-      return basic || aiMatch;
+      return basicMatch || aiMatch;
     });
-  }, [assets, searchQuery, expandedTerms, activeTab, currentUser]);
+  }, [assets, searchQuery, expandedTerms, activeTab, user]);
 
-  if (loading) return (
-    <div className="h-screen w-full flex flex-col items-center justify-center bg-brand-black">
-      <div className="w-16 h-16 border-t-2 border-white rounded-full animate-spin mb-8 shadow-2xl" />
-      <p className="text-[10px] font-black uppercase tracking-[1em] animate-pulse text-zinc-600">Syncing Protocol</p>
-    </div>
-  );
+  const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!user || isUploading) return;
+    
+    const formData = new FormData(e.currentTarget);
+    const assetFile = formData.get('file') as File;
+    const thumbFile = formData.get('thumb') as File;
+    const videoFile = formData.get('video') as File;
+    
+    if (!assetFile || !thumbFile || !videoFile) return alert("All files required.");
+    
+    setIsUploading(true);
+    setUploadProgress("Analyzing DNA with Gemini...");
+    
+    try {
+      const title = formData.get('title') as string;
+      const desc = formData.get('desc') as string;
+      const keywords = await geminiService.generateKeywords(title, desc);
+      
+      const toBase64 = (file: File): Promise<string> => new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+      });
+
+      setUploadProgress("Processing Binary Data...");
+      const [assetB64, thumbB64, videoB64] = await Promise.all([
+        toBase64(assetFile),
+        toBase64(thumbFile),
+        toBase64(videoFile)
+      ]);
+
+      const asset: Asset = {
+        id: `EXC-${Date.now().toString(36).toUpperCase()}`,
+        userId: user.id,
+        authorName: user.name,
+        authorAvatar: user.avatar,
+        authorVerified: user.isVerified,
+        title,
+        description: desc,
+        category: formData.get('category') as Category,
+        fileType: assetFile.name.slice(assetFile.name.lastIndexOf('.')) as any,
+        thumbnailUrl: '',
+        fileUrl: '',
+        downloadCount: 0,
+        likes: [],
+        reports: 0,
+        credits: formData.get('credits') as string,
+        timestamp: Date.now(),
+        keywords
+      };
+
+      setUploadProgress("Transmitting to GitHub...");
+      await githubService.uploadAsset(asset, { asset: assetB64, thumb: thumbB64, video: videoB64 });
+      
+      setIsUploading(false);
+      setShowUpload(false);
+      fetchAssets();
+    } catch (err) {
+      console.error(err);
+      alert("Transmission failed.");
+      setIsUploading(false);
+    }
+  };
+
+  if (authLoading) return null;
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row max-w-[1600px] mx-auto">
-      <aside className="w-full lg:w-72 shrink-0 flex flex-col glass-panel lg:fixed h-auto lg:h-[calc(100vh-80px)] top-10 left-10 rounded-[3rem] p-8 z-50 border-white/5">
+    <div className="min-h-screen flex flex-col lg:flex-row max-w-[1600px] mx-auto relative">
+      <HeroScene />
+      
+      <aside className="w-full lg:w-72 shrink-0 flex flex-col glass-panel lg:fixed h-auto lg:h-[calc(100vh-80px)] top-10 left-10 rounded-[3rem] p-8 z-50">
         <div className="flex items-center gap-4 mb-16">
           <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-xl">
-            <Icons.Model className="w-7 h-7 text-black" />
+            <Shield className="w-7 h-7 text-black" />
           </div>
           <h1 className="font-black italic text-xl tracking-tighter text-white">EXCALIBUR</h1>
         </div>
+
         <nav className="flex flex-col gap-2 flex-grow">
-          <button onClick={() => setActiveTab('explore')} className={`sidebar-item ${activeTab === 'explore' ? 'active' : ''}`}><Icons.Search className="w-5 h-5 shrink-0" /> <span>Registry</span></button>
-          <button onClick={() => setActiveTab('verified')} className={`sidebar-item ${activeTab === 'verified' ? 'active' : ''}`}><Icons.Verified className="w-5 h-5 shrink-0" /> <span>Certified</span></button>
-          <button onClick={() => setActiveTab('market')} className={`sidebar-item ${activeTab === 'market' ? 'active' : ''}`}><Icons.Script className="w-5 h-5 shrink-0" /> <span>Open Source</span></button>
-          <button onClick={() => setActiveTab('profile')} className={`sidebar-item ${activeTab === 'profile' ? 'active' : ''}`}><Icons.Plus className="w-5 h-5 shrink-0" /> <span>My Chamber</span></button>
-          {isAdmin(currentUser) && (
-            <button onClick={() => setActiveTab('admin')} className={`sidebar-item mt-8 ${activeTab === 'admin' ? 'bg-brand-red text-white' : 'text-red-500/40 hover:bg-red-500/5'}`}><Icons.Report className="w-5 h-5 shrink-0" /> <span>Root Terminal</span></button>
+          <button onClick={() => setActiveTab('explore')} className={cn("sidebar-item", activeTab === 'explore' && "active")}>
+            <Search className="w-5 h-5" /> <span>Explore</span>
+          </button>
+          <button onClick={() => setActiveTab('verified')} className={cn("sidebar-item", activeTab === 'verified' && "active")}>
+            <CheckCircle className="w-5 h-5" /> <span>Verified</span>
+          </button>
+          <button onClick={() => setActiveTab('profile')} className={cn("sidebar-item", activeTab === 'profile' && "active")}>
+            <Plus className="w-5 h-5" /> <span>My Chamber</span>
+          </button>
+          {isAdmin && (
+            <button onClick={() => setActiveTab('admin')} className={cn("sidebar-item mt-8 text-red-500/40 hover:bg-red-500/5", activeTab === 'admin' && "bg-red-500 text-white")}>
+              <Shield className="w-5 h-5" /> <span>Root Terminal</span>
+            </button>
           )}
         </nav>
+
         <div className="mt-8 pt-8 border-t border-white/5">
-          {currentUser ? (
+          {user ? (
             <div className="flex items-center gap-4 p-4 glass-panel rounded-[2rem] border-none bg-white/[0.03]">
-              <img src={currentUser.avatar} className="w-10 h-10 rounded-xl grayscale border border-white/10" referrerPolicy="no-referrer" />
+              <img src={user.avatar} className="w-10 h-10 rounded-xl grayscale" referrerPolicy="no-referrer" />
               <div className="flex-grow min-w-0">
-                <p className="text-[12px] font-black truncate mb-1.5">{currentUser.name}</p>
-                <button onClick={handleLogout} className="text-[8px] font-black text-zinc-600 uppercase tracking-widest hover:text-white transition-colors">Disconnect</button>
+                <p className="text-[12px] font-black truncate mb-1">{user.name}</p>
+                <button onClick={logout} className="text-[8px] font-black text-zinc-600 uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1">
+                  <LogOut className="w-2 h-2" /> Disconnect
+                </button>
               </div>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-6">
               <p className="text-[9px] font-black uppercase text-zinc-700 tracking-widest text-center">Protocol Identity</p>
-              <div id="google-login-btn" className="w-full flex justify-center"></div>
+              <div id="google-btn"></div>
             </div>
           )}
         </div>
@@ -281,112 +273,194 @@ export default function App() {
       <main className="flex-grow lg:ml-80 p-6 lg:p-10 relative">
         <header className="mb-20 flex flex-col xl:flex-row justify-between items-start xl:items-end gap-12">
           <div className="min-w-0 flex-grow">
-            <div className="flex items-center gap-4 mb-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-700 italic">System // Archive</p>
-              <button onClick={() => syncRegistry(true)} className={`flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-all ${isRefreshing ? 'animate-pulse' : ''}`}>{isRefreshing ? 'Syncing...' : 'Force Sync'}</button>
-            </div>
-            <h2 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter leading-none glitch-text truncate">{activeTab}</h2>
+            <p className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-700 italic mb-4">System // Archive</p>
+            <h2 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter leading-none truncate text-white">
+              {activeTab}
+            </h2>
           </div>
           <div className="search-wrapper group w-full xl:w-auto">
-            <Icons.Search className={`absolute left-5 z-10 w-4 h-4 transition-colors ${searchQuery ? 'text-white' : 'text-zinc-700'}`} />
-            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAiSearch()} placeholder="Registry scan..." className="search-input-fancy" />
-            <button onClick={handleAiSearch} disabled={isExpanding || !searchQuery} className="ai-search-btn">{isExpanding ? <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <span className="text-[8px] font-black uppercase tracking-widest">Gemini_Exp</span>}</button>
+            <Search className={cn("absolute left-5 z-10 w-4 h-4 transition-colors", searchQuery ? "text-white" : "text-zinc-700")} />
+            <input 
+              value={searchQuery} 
+              onChange={e => setSearchQuery(e.target.value)} 
+              onKeyDown={e => e.key === 'Enter' && handleAiSearch()}
+              placeholder="Registry scan..." 
+              className="search-input-fancy" 
+            />
+            <button onClick={handleAiSearch} disabled={isExpanding || !searchQuery} className="ai-search-btn">
+              {isExpanding ? <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <span className="text-[8px] font-black uppercase tracking-widest">Gemini_Exp</span>}
+            </button>
           </div>
         </header>
 
-        <div className="animate-fade-in">
-          {expandedTerms.length > 0 && (
-            <div className="mb-10 flex flex-wrap gap-2 p-4 glass-panel rounded-2xl border-brand-blue/20 bg-brand-blue/5">
-               {expandedTerms.slice(0, 6).map(term => <span key={term} className="px-3 py-1 bg-white/5 rounded-lg text-[9px] font-bold text-zinc-500 uppercase">#{term}</span>)}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+          <AnimatePresence mode="popLayout">
+            {filteredAssets.map(asset => (
+              <AssetCard key={asset.id} asset={asset} onClick={() => setSelectedAsset(asset)} />
+            ))}
+          </AnimatePresence>
+          {filteredAssets.length === 0 && !loading && (
+            <div className="col-span-full py-48 text-center flex flex-col items-center opacity-10">
+              <Shield className="w-20 h-20 mb-6" />
+              <p className="text-[14px] font-black uppercase tracking-[1em]">No Data Found</p>
             </div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-            {filteredAssets.map(asset => (<AssetCard key={asset.id} asset={asset} currentUser={currentUser} onClick={() => setSelectedAsset(asset)} />))}
-            {filteredAssets.length === 0 && (
-              <div className="col-span-full py-48 text-center flex flex-col items-center opacity-10">
-                <Icons.Model className="w-20 h-20 mb-6" />
-                <p className="text-[14px] font-black uppercase tracking-[1em]">No Data Found</p>
-              </div>
-            )}
-          </div>
         </div>
 
-        {currentUser && !currentUser.isBanned && (
-          <button onClick={() => setShowUpload(true)} className="fixed bottom-10 right-10 w-20 h-20 bg-white text-black rounded-[2rem] shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-40 border-[8px] border-brand-black group"><Icons.Plus className="w-8 h-8 group-hover:rotate-90 transition-transform duration-500" /></button>
+        {user && !user.isBanned && (
+          <motion.button 
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowUpload(true)} 
+            className="fixed bottom-10 right-10 w-20 h-20 bg-white text-black rounded-[2rem] shadow-2xl flex items-center justify-center z-40 border-[8px] border-black group"
+          >
+            <Plus className="w-8 h-8 group-hover:rotate-90 transition-transform duration-500" />
+          </motion.button>
         )}
       </main>
 
-      {selectedAsset && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-brand-black/98 backdrop-blur-3xl" onClick={() => setSelectedAsset(null)} />
-          <div className="relative w-full max-w-6xl glass-panel rounded-[3.5rem] overflow-hidden flex flex-col md:flex-row max-h-[85vh] animate-fade-in">
-            <div className="md:w-[65%] p-10 overflow-y-auto custom-scrollbar border-r border-white/5">
-              <div className="aspect-video rounded-[2.5rem] overflow-hidden bg-black mb-10 border border-white/10 group">
-                <video src={`${selectedAsset.videoUrl}?t=${Date.now()}`} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+      {/* Asset Details Modal */}
+      <AnimatePresence>
+        {selectedAsset && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-6"
+          >
+            <div className="absolute inset-0 bg-black/95 backdrop-blur-3xl" onClick={() => setSelectedAsset(null)} />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-6xl glass-panel rounded-[3.5rem] overflow-hidden flex flex-col md:flex-row max-h-[85vh]"
+            >
+              <div className="md:w-[65%] p-10 overflow-y-auto custom-scrollbar border-r border-white/5">
+                <div className="aspect-video rounded-[2.5rem] overflow-hidden bg-black mb-10 border border-white/10">
+                  <video src={selectedAsset.videoUrl} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+                </div>
+                <h2 className="text-4xl font-black italic uppercase tracking-tighter mb-6 text-white">{selectedAsset.title}</h2>
+                <div className="flex flex-wrap gap-2 mb-8">
+                  {selectedAsset.keywords.map(k => <span key={k} className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-zinc-500">#{k}</span>)}
+                </div>
+                <div className="bg-black/60 rounded-[2rem] p-8 border border-white/5">
+                  <p className="text-zinc-400 text-sm italic font-medium">"{selectedAsset.description}"</p>
+                </div>
               </div>
-              <h2 className="text-4xl font-black italic uppercase tracking-tighter mb-6">{selectedAsset.title}</h2>
-              <div className="flex flex-wrap gap-2 mb-8">
-                {selectedAsset.keywords?.map(k => <span key={k} className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-zinc-500">#{k}</span>)}
-              </div>
-              <div className="bg-black/60 rounded-[2rem] p-8 border border-white/5"><p className="text-zinc-400 text-sm italic font-medium">"{selectedAsset.description}"</p></div>
-            </div>
-            <div className="md:w-[35%] p-10 flex flex-col justify-between bg-zinc-950/40">
-              <div className="space-y-10">
-                <div className="p-6 glass-panel rounded-[2rem] flex items-center gap-4 border-none bg-white/[0.03]">
-                  <img src={selectedAsset.authorAvatar} className="w-12 h-12 rounded-xl border border-white/10 grayscale" referrerPolicy="no-referrer" />
-                  <div className="min-w-0">
-                    <p className="text-[14px] font-black uppercase truncate flex items-center gap-2">{selectedAsset.authorName} {selectedAsset.authorVerified && <Icons.Verified className="w-4 h-4 text-blue-400" />}</p>
-                    <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-1">Verified Unit</p>
+              <div className="md:w-[35%] p-10 flex flex-col justify-between bg-zinc-950/40">
+                <div className="space-y-10">
+                  <div className="p-6 glass-panel rounded-[2rem] flex items-center gap-4 border-none bg-white/[0.03]">
+                    <img src={selectedAsset.authorAvatar} className="w-12 h-12 rounded-xl border border-white/10 grayscale" referrerPolicy="no-referrer" />
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-black uppercase truncate flex items-center gap-2 text-white">
+                        {selectedAsset.authorName} {selectedAsset.authorVerified && <CheckCircle className="w-4 h-4 text-blue-500" />}
+                      </p>
+                      <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-1">Verified Unit</p>
+                    </div>
                   </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-6 glass-panel rounded-3xl text-center border-white/5">
+                      <p className="text-3xl font-black leading-none text-white">{selectedAsset.downloadCount}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-zinc-700 mt-2">Syncs</p>
+                    </div>
+                    <div className="p-6 glass-panel rounded-3xl text-center border-white/5">
+                      <p className="text-3xl font-black leading-none text-white">{selectedAsset.likes.length}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-zinc-700 mt-2">Loves</p>
+                    </div>
+                  </div>
+                  <button onClick={() => window.open(selectedAsset.fileUrl)} className="btn-primary-glitch w-full">Sync Binary</button>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-6 glass-panel rounded-3xl text-center border-white/5"><p className="text-3xl font-black leading-none">{selectedAsset.downloadCount}</p><p className="text-[9px] font-black uppercase tracking-widest text-zinc-700 mt-2">Syncs</p></div>
-                  <div className="p-6 glass-panel rounded-3xl text-center border-white/5"><p className="text-3xl font-black leading-none">{selectedAsset.likes?.length || 0}</p><p className="text-[9px] font-black uppercase tracking-widest text-zinc-700 mt-2">Loves</p></div>
-                </div>
-                <button onClick={() => handleDownload(selectedAsset)} className="btn-primary-glitch w-full">Sync Binary</button>
+                <button onClick={() => setSelectedAsset(null)} className="w-full py-4 text-[10px] font-black uppercase tracking-[0.5em] text-zinc-800 hover:text-white transition-colors">Abort Interaction</button>
               </div>
-              <button onClick={() => setSelectedAsset(null)} className="w-full py-4 text-[10px] font-black uppercase tracking-[0.5em] text-zinc-800 hover:text-white transition-colors">Abort Interaction</button>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {showUpload && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-8">
-          <div className="absolute inset-0 bg-brand-black/99 backdrop-blur-3xl" onClick={() => !isUploading && setShowUpload(false)} />
-          <div className="relative w-full max-w-4xl glass-panel rounded-[4rem] overflow-hidden flex flex-col max-h-[90vh] animate-fade-in border-white/10">
-            <header className="p-10 border-b border-white/5 flex justify-between items-center bg-black/40">
-               <h2 className="text-3xl font-black italic uppercase tracking-tighter text-white">Transmission Uplink</h2>
-               {!isUploading && (<button onClick={() => setShowUpload(false)} className="w-12 h-12 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors text-zinc-700 hover:text-white"><Icons.Plus className="w-7 h-7 rotate-45" /></button>)}
-            </header>
-            <form onSubmit={handleUpload} className="p-10 space-y-10 overflow-y-auto custom-scrollbar">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* Upload Modal */}
+      <AnimatePresence>
+        {showUpload && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center p-8"
+          >
+            <div className="absolute inset-0 bg-black/99 backdrop-blur-3xl" onClick={() => !isUploading && setShowUpload(false)} />
+            <motion.div 
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              className="relative w-full max-w-4xl glass-panel rounded-[4rem] overflow-hidden flex flex-col max-h-[90vh] border-white/10"
+            >
+              <header className="p-10 border-b border-white/5 flex justify-between items-center bg-black/40">
+                <h2 className="text-3xl font-black italic uppercase tracking-tighter text-white">Transmission Uplink</h2>
+                {!isUploading && (
+                  <button onClick={() => setShowUpload(false)} className="w-12 h-12 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors text-zinc-700 hover:text-white">
+                    <X className="w-7 h-7" />
+                  </button>
+                )}
+              </header>
+              <form onSubmit={handleUpload} className="p-10 space-y-10 overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-6">
-                    <div><label className="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-3 block italic">Label</label><input required name="title" placeholder="ALIAS..." className="input-terminal-fancy" /></div>
-                    <div><label className="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-3 block italic">Sector</label><select name="category" className="input-terminal-fancy appearance-none">{Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-3 block italic">Label</label>
+                      <input required name="title" placeholder="ALIAS..." className="input-terminal-fancy" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-3 block italic">Sector</label>
+                      <select name="category" className="input-terminal-fancy appearance-none">
+                        {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
                   </div>
-                  <div><label className="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-3 block italic">Logs</label><textarea required name="desc" placeholder="FUNCTIONAL DETAILS..." className="input-terminal-fancy h-[132px] resize-none" /></div>
-               </div>
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <label className="group glass-panel rounded-3xl p-8 h-48 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all border-dashed border-white/20"><Icons.Script className="w-10 h-10 mb-4 opacity-20 group-hover:opacity-100" /><span className="text-[9px] font-black uppercase text-zinc-700 group-hover:text-white">Binary</span><input required type="file" name="file" accept=".rbxm,.rbxl,.rbxmx" className="hidden" /></label>
-                  <label className="group glass-panel rounded-3xl p-8 h-48 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all border-dashed border-white/20"><Icons.Model className="w-10 h-10 mb-4 opacity-20 group-hover:opacity-100" /><span className="text-[9px] font-black uppercase text-zinc-700 group-hover:text-white">Visual</span><input required type="file" name="thumb" accept="image/*" className="hidden" /></label>
-                  <label className="group glass-panel rounded-3xl p-8 h-48 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all border-dashed border-white/20"><Icons.Download className="w-10 h-10 mb-4 opacity-20 group-hover:opacity-100" /><span className="text-[9px] font-black uppercase text-zinc-700 group-hover:text-white">Motion</span><input required type="file" name="video" accept="video/mp4" className="hidden" /></label>
-               </div>
-               <div className="pt-8 flex justify-end items-center gap-10">
+                  <div>
+                    <label className="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-3 block italic">Logs</label>
+                    <textarea required name="desc" placeholder="FUNCTIONAL DETAILS..." className="input-terminal-fancy h-[132px] resize-none" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <label className="group glass-panel rounded-3xl p-8 h-48 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all border-dashed border-white/20">
+                    <FileCode className="w-10 h-10 mb-4 opacity-20 group-hover:opacity-100 text-white" />
+                    <span className="text-[9px] font-black uppercase text-zinc-700 group-hover:text-white">Binary</span>
+                    <input required type="file" name="file" accept=".rbxm,.rbxl,.rbxmx" className="hidden" />
+                  </label>
+                  <label className="group glass-panel rounded-3xl p-8 h-48 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all border-dashed border-white/20">
+                    <ImageIcon className="w-10 h-10 mb-4 opacity-20 group-hover:opacity-100 text-white" />
+                    <span className="text-[9px] font-black uppercase text-zinc-700 group-hover:text-white">Visual</span>
+                    <input required type="file" name="thumb" accept="image/*" className="hidden" />
+                  </label>
+                  <label className="group glass-panel rounded-3xl p-8 h-48 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all border-dashed border-white/20">
+                    <Video className="w-10 h-10 mb-4 opacity-20 group-hover:opacity-100 text-white" />
+                    <span className="text-[9px] font-black uppercase text-zinc-700 group-hover:text-white">Motion</span>
+                    <input required type="file" name="video" accept="video/mp4" className="hidden" />
+                  </label>
+                </div>
+                <div className="pt-8 flex justify-end items-center gap-10">
                   <button type="button" onClick={() => setShowUpload(false)} className="text-[11px] font-black uppercase tracking-[0.4em] text-zinc-800 hover:text-white transition-colors">Abort</button>
                   <button type="submit" className="btn-primary-glitch">Initiate Sync</button>
-               </div>
-            </form>
-            {isUploading && (
-              <div className="absolute inset-0 bg-brand-black/99 flex flex-col items-center justify-center p-16 z-50 text-center animate-fade-in">
-                <div className="w-20 h-20 border-t-2 border-white rounded-full animate-spin mb-10" />
-                <h3 className="text-3xl font-black italic uppercase tracking-tighter mb-4 text-white">Transmitting...</h3>
-                <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.8em] animate-pulse">{uploadProgress}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+                </div>
+              </form>
+              {isUploading && (
+                <div className="absolute inset-0 bg-black/99 flex flex-col items-center justify-center p-16 z-50 text-center">
+                  <div className="w-20 h-20 border-t-2 border-white rounded-full animate-spin mb-10" />
+                  <h3 className="text-3xl font-black italic uppercase tracking-tighter mb-4 text-white">Transmitting...</h3>
+                  <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.8em] animate-pulse">{uploadProgress}</p>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  );
+};
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
   );
 }

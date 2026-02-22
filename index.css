@@ -1,7 +1,16 @@
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-brand-black: #050505;
+  --color-brand-zinc: #0a0a0c;
+  --color-brand-accent: #ffffff;
+  --color-brand-red: #ff3e3e;
+  --color-brand-blue: #3e8bff;
+
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
 
 @layer base {
   :root {
@@ -49,7 +58,7 @@
   }
 
   .premium-card {
-    @apply relative overflow-hidden glass-panel rounded-[2.5rem] transition-all duration-500 border border-white/5;
+    @apply relative overflow-hidden bg-zinc-950/60 border border-white/5 backdrop-blur-3xl shadow-2xl rounded-[2.5rem] transition-all duration-500;
   }
 
   .premium-card:hover {
@@ -97,15 +106,17 @@
     @apply px-8 py-4 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl relative transition-all active:scale-95;
   }
 
-  .custom-scrollbar::-webkit-scrollbar {
-    @apply w-1;
-  }
+  .custom-scrollbar {
+    &::-webkit-scrollbar {
+      @apply w-1;
+    }
 
-  .custom-scrollbar::-webkit-scrollbar-track {
-    @apply bg-transparent;
-  }
+    &::-webkit-scrollbar-track {
+      @apply bg-transparent;
+    }
 
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-white/10 rounded-full hover:bg-white/20;
+    &::-webkit-scrollbar-thumb {
+      @apply bg-white/10 rounded-full hover:bg-white/20;
+    }
   }
 }

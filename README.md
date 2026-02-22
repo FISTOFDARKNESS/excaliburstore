@@ -1,20 +1,20 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Excalibur Store - Roblox Asset Hub (Rebuilt)
 
-# Run and deploy your AI Studio app
+Excalibur is a premium, decentralized marketplace and repository designed for Roblox creators.
 
-This contains everything you need to run your app locally.
+## 🚀 Rebuilt Features
+- **Three.js Hero**: Immersive particle scene for a high-tech feel.
+- **Octokit Integration**: Robust GitHub API service for asset management.
+- **Gemini AI**: Semantic search expansion and auto-keyword generation.
+- **Framer Motion**: Smooth UI transitions and micro-animations.
+- **Glassmorphism**: Modern, translucent UI design.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1fD3btAls4PGsDHyx1qyLF5tgyqEdhISp
+## 🛠️ Tech Stack
+- **Frontend**: React 19 + TypeScript + Tailwind CSS (v4).
+- **3D Engine**: Three.js + React Three Fiber.
+- **AI Engine**: Google Gemini API.
+- **Storage**: GitHub API (Octokit).
+- **Auth**: Google OAuth 2.0.
 
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+---
+*Excalibur Store - Empowering the next generation of Roblox development.*
