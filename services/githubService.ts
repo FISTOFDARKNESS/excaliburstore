@@ -23,9 +23,9 @@ export const githubService = {
         headers: { 'If-None-Match': '' } // Disable cache
       });
       
-      if ('content' in data) {
-        const content = atob(data.content);
-        return { content: JSON.parse(content), sha: data.sha };
+      if ('content' in data && typeof data.content === 'string') {
+        const decoded = new TextDecoder().decode(Uint8Array.from(atob(data.content.replace(/\n/g, '')), c => c.charCodeAt(0)));
+        return { content: JSON.parse(decoded), sha: data.sha };
       }
       return null;
     } catch (error) {
@@ -34,12 +34,15 @@ export const githubService = {
   },
 
   async uploadFile(path: string, content: string, message: string, sha?: string) {
+    const bytes = new TextEncoder().encode(content);
+    const base64 = btoa(String.fromCharCode(...bytes));
+    
     return octokit.rest.repos.createOrUpdateFileContents({
       owner: OWNER,
       repo: REPO,
       path,
       message,
-      content: btoa(unescape(encodeURIComponent(content))),
+      content: base64,
       branch: BRANCH,
       sha
     });

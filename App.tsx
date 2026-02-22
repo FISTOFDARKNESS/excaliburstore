@@ -97,32 +97,60 @@ const MainApp = () => {
 
   useEffect(() => {
     if (user) return;
+
+    const decodeJwt = (token: string) => {
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload);
+      } catch (e) {
+        console.error("JWT Decode Failed", e);
+        return null;
+      }
+    };
+
     const initGoogle = () => {
       if (window.google?.accounts?.id) {
         window.google.accounts.id.initialize({
           client_id: "308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com",
           callback: async (response: any) => {
-            const payload = JSON.parse(atob(response.credential.split('.')[1]));
-            await login({
-              id: payload.sub,
-              name: payload.name,
-              email: payload.email,
-              avatar: payload.picture
-            });
+            const payload = decodeJwt(response.credential);
+            if (payload) {
+              await login({
+                id: payload.sub,
+                name: payload.name,
+                email: payload.email,
+                avatar: payload.picture
+              });
+            }
           },
+          auto_select: true,
+          itp_support: true
         });
-        window.google.accounts.id.renderButton(
-          document.getElementById('google-btn'),
-          { theme: 'filled_black', size: 'large', shape: 'pill', width: 240 }
-        );
+        
+        const btnContainer = document.getElementById('google-btn');
+        if (btnContainer) {
+          window.google.accounts.id.renderButton(btnContainer, { 
+            theme: 'filled_black', 
+            size: 'large', 
+            shape: 'pill', 
+            width: 240,
+            text: 'signin_with'
+          });
+        }
       }
     };
+
     const timer = setInterval(() => {
       if (window.google?.accounts?.id) {
         initGoogle();
         clearInterval(timer);
       }
-    }, 500);
+    }, 1000);
+
     return () => clearInterval(timer);
   }, [user, login]);
 
