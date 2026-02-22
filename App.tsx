@@ -124,7 +124,7 @@ export default function App() {
   useEffect(() => {
     const init = async () => {
       await syncRegistry();
-      const session = localStorage.getItem('ex_session_v5');
+      const session = localStorage.getItem('ex_session_clean');
       if (session) {
         try {
           const u = JSON.parse(session);
@@ -132,9 +132,9 @@ export default function App() {
           if (fresh && !fresh.user.isBanned) {
             setCurrentUser(fresh.user);
           } else {
-            localStorage.removeItem('ex_session_v5');
+            localStorage.removeItem('ex_session_clean');
           }
-        } catch { localStorage.removeItem('ex_session_v5'); }
+        } catch { localStorage.removeItem('ex_session_clean'); }
       }
       setLoading(false);
     };
@@ -157,7 +157,7 @@ export default function App() {
               avatar: payload.picture
             });
             setCurrentUser(user);
-            localStorage.setItem('ex_session_v5', JSON.stringify(user));
+            localStorage.setItem('ex_session_clean', JSON.stringify(user));
           },
         });
         window.google.accounts.id.renderButton(btn, { theme: 'filled_black', size: 'large', shape: 'pill', width: 220 });
@@ -167,7 +167,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [currentUser]);
 
-  const handleLogout = () => { if (confirm("Terminate Session?")) { setCurrentUser(null); localStorage.removeItem('ex_session_v5'); window.location.reload(); } };
+  const handleLogout = () => { if (confirm("Terminate Session?")) { setCurrentUser(null); localStorage.removeItem('ex_session_clean'); window.location.reload(); } };
 
   const handleAiSearch = async () => {
     if (!searchQuery.trim() || isExpanding) return;
