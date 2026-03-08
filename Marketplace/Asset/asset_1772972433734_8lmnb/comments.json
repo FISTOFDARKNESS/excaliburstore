@@ -1,5 +1,4 @@
-const comments = [
-  {
+ {
     id: "1000000000001", // comentário de teste 1
     author: "ShadowKing",
     text: "Amazing asset, really useful for my project!",
@@ -119,4 +118,3 @@ const comments = [
     text: "I really appreciate the level of detail here.",
     timestamp: "2026-03-08T20:12:12.123Z"
   }
-];
