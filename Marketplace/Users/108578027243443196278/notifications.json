@@ -1,5 +1,14 @@
 [
   {
+    "type": "comment",
+    "title": "New Comment",
+    "message": "EXCALIBUR commented on your asset \"Jin Mori Wukong\".",
+    "link": "/asset/asset_1772971987900_xyr68",
+    "id": "notif_1773494976263_up781",
+    "createdAt": "2026-03-14T13:29:36.263Z",
+    "read": false
+  },
+  {
     "type": "reply",
     "title": "New Reply",
     "message": "Elly Silva replied to your forum thread \"Test\".",
