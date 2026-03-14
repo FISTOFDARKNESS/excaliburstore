@@ -1,5 +1,14 @@
 [
   {
+    "type": "reply",
+    "title": "New Reply",
+    "message": "Elly Silva replied to your forum thread \"Test\".",
+    "link": "/community/post_1773491170367_f0l5f",
+    "id": "notif_1773492992037_srojp",
+    "createdAt": "2026-03-14T12:56:32.037Z",
+    "read": false
+  },
+  {
     "type": "comment",
     "title": "New Comment",
     "message": "EXCALIBUR commented on your asset \"Gojo VFX\".",
