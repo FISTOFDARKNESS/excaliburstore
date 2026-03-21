@@ -4,6 +4,15 @@
     "title": "Account Verified",
     "message": "Congratulations! Your account has been verified by the admins.",
     "link": "/profile/ellysilva",
+    "id": "notif_1774137403653_u9fvo",
+    "createdAt": "2026-03-21T23:56:43.653Z",
+    "read": false
+  },
+  {
+    "type": "system",
+    "title": "Account Verified",
+    "message": "Congratulations! Your account has been verified by the admins.",
+    "link": "/profile/ellysilva",
     "id": "notif_1774137400993_s6sxr",
     "createdAt": "2026-03-21T23:56:40.993Z",
     "read": false
