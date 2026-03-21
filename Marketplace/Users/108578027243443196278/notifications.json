@@ -1,5 +1,14 @@
 [
   {
+    "type": "system",
+    "title": "Account Verified",
+    "message": "Congratulations! Your account has been verified by the admins.",
+    "link": "/profile/excalibur",
+    "id": "notif_1774137465591_xunmm",
+    "createdAt": "2026-03-21T23:57:45.592Z",
+    "read": false
+  },
+  {
     "type": "comment",
     "title": "New Comment",
     "message": "EXCALIBUR commented on your asset \"Ichigo AfterImage\".",
