@@ -2,6 +2,15 @@
   {
     "type": "comment",
     "title": "New Comment",
+    "message": "EXCALIBUR commented on your asset \"Ichigo AfterImage\".",
+    "link": "/asset/asset_1772897977123_comuk",
+    "id": "notif_1774137099298_wgf9d",
+    "createdAt": "2026-03-21T23:51:39.298Z",
+    "read": false
+  },
+  {
+    "type": "comment",
+    "title": "New Comment",
     "message": "EXCALIBUR commented on your asset \"Jin Mori Wukong\".",
     "link": "/asset/asset_1772971987900_xyr68",
     "id": "notif_1773494976263_up781",
