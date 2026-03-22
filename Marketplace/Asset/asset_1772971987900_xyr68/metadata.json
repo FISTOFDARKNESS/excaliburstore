@@ -8,6 +8,6 @@
   "price": "Free",
   "tags": [],
   "createdAt": "2026-03-08T12:13:07.900Z",
-  "thumbnailUrl": "https://raw.githubusercontent.com/FISTOFDARKNESS/excaliburstore/main/Marketplace/Asset/asset_1772971987900_xyr68/thumbnail.png",
-  "downloads": 1
+  "thumbnailUrl": "/api/proxy/thumbnail?url=https%3A%2F%2Fraw.githubusercontent.com%2FFISTOFDARKNESS%2Fexcaliburstore%2Fmain%2FMarketplace%2FAsset%2Fasset_1772971987900_xyr68%2Fthumbnail.png",
+  "downloads": 2
 }
