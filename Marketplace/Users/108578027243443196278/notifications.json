@@ -6,7 +6,7 @@
     "link": "/asset/asset_1772896879101_uno3v",
     "id": "notif_1774139419162_nhjt8",
     "createdAt": "2026-03-22T00:30:19.162Z",
-    "read": false
+    "read": true
   },
   {
     "type": "comment",
@@ -15,7 +15,7 @@
     "link": "/asset/asset_1772896879101_uno3v",
     "id": "notif_1774139397844_11c03",
     "createdAt": "2026-03-22T00:29:57.844Z",
-    "read": false
+    "read": true
   },
   {
     "type": "download",
