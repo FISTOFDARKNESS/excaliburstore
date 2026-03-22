@@ -6,7 +6,7 @@
     "link": "/profile/excalibur",
     "id": "notif_1774137465591_xunmm",
     "createdAt": "2026-03-21T23:57:45.592Z",
-    "read": false
+    "read": true
   },
   {
     "type": "comment",
@@ -15,7 +15,7 @@
     "link": "/asset/asset_1772897977123_comuk",
     "id": "notif_1774137099298_wgf9d",
     "createdAt": "2026-03-21T23:51:39.298Z",
-    "read": false
+    "read": true
   },
   {
     "type": "comment",
@@ -24,7 +24,7 @@
     "link": "/asset/asset_1772971987900_xyr68",
     "id": "notif_1773494976263_up781",
     "createdAt": "2026-03-14T13:29:36.263Z",
-    "read": false
+    "read": true
   },
   {
     "type": "reply",
