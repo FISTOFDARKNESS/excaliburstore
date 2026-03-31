@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "type": "ban",
+    "targetId": "113240586044786210266",
+    "targetUsername": "ellysilva",
+    "reporterEmail": "system",
+    "reason": "Admin applied temp ban. Reason: nigger",
+    "id": "report_1774994249586_thm7n",
+    "createdAt": "2026-03-31T21:57:29.586Z",
+    "status": "pending"
+  }
+]
