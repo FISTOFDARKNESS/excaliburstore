@@ -1,5 +1,15 @@
 [
   {
+    "type": "unban",
+    "targetId": "113240586044786210266",
+    "targetUsername": "ellysilva",
+    "reporterEmail": "system",
+    "reason": "Admin removed the ban.",
+    "id": "report_1774994945263_svrw3",
+    "createdAt": "2026-03-31T22:09:05.263Z",
+    "status": "pending"
+  },
+  {
     "type": "ban",
     "targetId": "113240586044786210266",
     "targetUsername": "ellysilva",
