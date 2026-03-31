@@ -6,7 +6,7 @@
     "link": "/profile/ellysilva",
     "id": "notif_1774137403653_u9fvo",
     "createdAt": "2026-03-21T23:56:43.653Z",
-    "read": false
+    "read": true
   },
   {
     "type": "system",
@@ -15,7 +15,7 @@
     "link": "/profile/ellysilva",
     "id": "notif_1774137400993_s6sxr",
     "createdAt": "2026-03-21T23:56:40.993Z",
-    "read": false
+    "read": true
   },
   {
     "type": "social",
@@ -24,7 +24,7 @@
     "link": "/profile/excalibur",
     "id": "notif_1774137389738_iov8t",
     "createdAt": "2026-03-21T23:56:29.738Z",
-    "read": false
+    "read": true
   },
   {
     "type": "social",
@@ -33,6 +33,6 @@
     "link": "/profile/excalibur",
     "id": "notif_1774137386785_jgck0",
     "createdAt": "2026-03-21T23:56:26.785Z",
-    "read": false
+    "read": true
   }
 ]
