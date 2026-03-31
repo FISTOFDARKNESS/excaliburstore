@@ -4,6 +4,15 @@
     "title": "New Follower",
     "message": "Elly Silva is now following you!",
     "link": "/profile/ellysilva",
+    "id": "notif_1774993245659_nf5xc",
+    "createdAt": "2026-03-31T21:40:45.659Z",
+    "read": false
+  },
+  {
+    "type": "social",
+    "title": "New Follower",
+    "message": "Elly Silva is now following you!",
+    "link": "/profile/ellysilva",
     "id": "notif_1774993230677_yti5m",
     "createdAt": "2026-03-31T21:40:30.677Z",
     "read": false
