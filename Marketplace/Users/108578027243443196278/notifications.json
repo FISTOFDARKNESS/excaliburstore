@@ -6,7 +6,7 @@
     "link": "/asset/asset_1772896369086_ih8yt",
     "id": "notif_1774997691510_6bqcv",
     "createdAt": "2026-03-31T22:54:51.510Z",
-    "read": false
+    "read": true
   },
   {
     "type": "social",
@@ -15,7 +15,7 @@
     "link": "/profile/ellysilva",
     "id": "notif_1774993476634_tbzie",
     "createdAt": "2026-03-31T21:44:36.635Z",
-    "read": false
+    "read": true
   },
   {
     "type": "social",
@@ -24,7 +24,7 @@
     "link": "/profile/ellysilva",
     "id": "notif_1774993245659_nf5xc",
     "createdAt": "2026-03-31T21:40:45.659Z",
-    "read": false
+    "read": true
   },
   {
     "type": "social",
@@ -33,7 +33,7 @@
     "link": "/profile/ellysilva",
     "id": "notif_1774993230677_yti5m",
     "createdAt": "2026-03-31T21:40:30.677Z",
-    "read": false
+    "read": true
   },
   {
     "type": "social",
@@ -42,7 +42,7 @@
     "link": "/profile/ellysilva",
     "id": "notif_1774993216155_53988",
     "createdAt": "2026-03-31T21:40:16.155Z",
-    "read": false
+    "read": true
   },
   {
     "type": "social",
@@ -51,7 +51,7 @@
     "link": "/profile/ellysilva",
     "id": "notif_1774993214599_jsudy",
     "createdAt": "2026-03-31T21:40:14.599Z",
-    "read": false
+    "read": true
   },
   {
     "type": "social",
@@ -60,7 +60,7 @@
     "link": "/profile/ellysilva",
     "id": "notif_1774993090558_lj0d2",
     "createdAt": "2026-03-31T21:38:10.558Z",
-    "read": false
+    "read": true
   },
   {
     "type": "comment",
