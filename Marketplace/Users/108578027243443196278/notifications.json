@@ -1,5 +1,14 @@
 [
   {
+    "type": "social",
+    "title": "New Follower",
+    "message": "Elly Silva is now following you!",
+    "link": "/profile/ellysilva",
+    "id": "notif_1774993090558_lj0d2",
+    "createdAt": "2026-03-31T21:38:10.558Z",
+    "read": false
+  },
+  {
     "type": "comment",
     "title": "New Comment",
     "message": "EXCALIBUR commented on your asset \"black desert wukong\".",
