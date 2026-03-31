@@ -6,7 +6,7 @@
     "link": "/asset/asset_1772883691620_7rwv8",
     "id": "notif_1774999975244_23gcs",
     "createdAt": "2026-03-31T23:32:55.244Z",
-    "read": false
+    "read": true
   },
   {
     "type": "comment",
@@ -15,7 +15,7 @@
     "link": "/asset/asset_1772883691620_7rwv8",
     "id": "notif_1774999916071_v252t",
     "createdAt": "2026-03-31T23:31:56.071Z",
-    "read": false
+    "read": true
   },
   {
     "type": "comment",
@@ -24,7 +24,7 @@
     "link": "/asset/asset_1772883691620_7rwv8",
     "id": "notif_1774999318754_bcu02",
     "createdAt": "2026-03-31T23:21:58.755Z",
-    "read": false
+    "read": true
   },
   {
     "type": "download",
