@@ -1,5 +1,14 @@
 [
   {
+    "type": "download",
+    "title": "Asset Downloaded",
+    "message": "Someone downloaded your asset \"ets\"!",
+    "link": "/asset/asset_1775162271040_tm5my",
+    "id": "notif_1775162332225_ehok4",
+    "createdAt": "2026-04-02T20:38:52.225Z",
+    "read": false
+  },
+  {
     "type": "system",
     "title": "Asset Rejected",
     "message": "Your asset \"test\" was rejected by moderation.\nReason: No reason provided.",
