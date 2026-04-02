@@ -1,5 +1,14 @@
 [
   {
+    "type": "download",
+    "title": "Asset Downloaded",
+    "message": "Someone downloaded your asset \"test\"!",
+    "link": "/asset/asset_1775158003798_6f84w",
+    "id": "notif_1775158055779_jkhck",
+    "createdAt": "2026-04-02T19:27:35.779Z",
+    "read": false
+  },
+  {
     "type": "system",
     "title": "Asset Rejected",
     "message": "Your asset \"asa\" was rejected by moderation.\nReason: No reason provided.",
