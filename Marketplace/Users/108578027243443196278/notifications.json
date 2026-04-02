@@ -2,6 +2,15 @@
   {
     "type": "system",
     "title": "Asset Rejected",
+    "message": "Your asset \"test\" was rejected by moderation.\nReason: No reason provided.",
+    "link": "/uplink",
+    "id": "notif_1775162232987_7iaxb",
+    "createdAt": "2026-04-02T20:37:12.987Z",
+    "read": false
+  },
+  {
+    "type": "system",
+    "title": "Asset Rejected",
     "message": "Your asset \"Mahito Hand aura\" was rejected by moderation.\nReason: No reason provided.",
     "link": "/uplink",
     "id": "notif_1775161912102_5ir0i",
