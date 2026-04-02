@@ -12,5 +12,10 @@
   "verified": false,
   "favorites": [
     "asset_1772883691620_7rwv8"
-  ]
+  ],
+  "usage": {
+    "download": 1,
+    "upload": 0,
+    "lastReset": "2026-04-02T16:44:38.424Z"
+  }
 }
