@@ -2,6 +2,15 @@
   {
     "type": "system",
     "title": "Asset Rejected",
+    "message": "Your asset \"aa\" was rejected by moderation.\nReason: No reason provided.",
+    "link": "/uplink",
+    "id": "notif_1775150225046_vk5dp",
+    "createdAt": "2026-04-02T17:17:05.046Z",
+    "read": false
+  },
+  {
+    "type": "system",
+    "title": "Asset Rejected",
     "message": "Your asset \"aa\" was rejected by moderation.\nReason: k",
     "link": "/uplink",
     "id": "notif_1775150204948_4ofu8",
