@@ -1,5 +1,14 @@
 [
   {
+    "type": "system",
+    "title": "Asset Rejected",
+    "message": "Your asset \"test\" was rejected by moderation.\nReason: No reason provided.",
+    "link": "/uplink",
+    "id": "notif_1775158337730_y2lgl",
+    "createdAt": "2026-04-02T19:32:17.730Z",
+    "read": false
+  },
+  {
     "type": "download",
     "title": "Asset Downloaded",
     "message": "Someone downloaded your asset \"test\"!",
