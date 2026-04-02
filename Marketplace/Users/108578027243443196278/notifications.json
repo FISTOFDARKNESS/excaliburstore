@@ -6,7 +6,7 @@
     "link": "/profile/excalibur",
     "id": "notif_1775159007409_n1nq1",
     "createdAt": "2026-04-02T19:43:27.410Z",
-    "read": false
+    "read": true
   },
   {
     "type": "system",
@@ -15,7 +15,7 @@
     "link": "/uplink",
     "id": "notif_1775158337730_y2lgl",
     "createdAt": "2026-04-02T19:32:17.730Z",
-    "read": false
+    "read": true
   },
   {
     "type": "download",
@@ -24,7 +24,7 @@
     "link": "/asset/asset_1775158213133_zyv2j",
     "id": "notif_1775158281455_vvmz4",
     "createdAt": "2026-04-02T19:31:21.455Z",
-    "read": false
+    "read": true
   },
   {
     "type": "download",
@@ -33,7 +33,7 @@
     "link": "/asset/asset_1775158003798_6f84w",
     "id": "notif_1775158055779_jkhck",
     "createdAt": "2026-04-02T19:27:35.779Z",
-    "read": false
+    "read": true
   },
   {
     "type": "system",
@@ -42,7 +42,7 @@
     "link": "/uplink",
     "id": "notif_1775157315688_tq8my",
     "createdAt": "2026-04-02T19:15:15.688Z",
-    "read": false
+    "read": true
   },
   {
     "type": "system",
@@ -51,7 +51,7 @@
     "link": "/uplink",
     "id": "notif_1775157309899_4i9y6",
     "createdAt": "2026-04-02T19:15:09.899Z",
-    "read": false
+    "read": true
   },
   {
     "type": "system",
@@ -60,7 +60,7 @@
     "link": "/uplink",
     "id": "notif_1775157306467_j0pfd",
     "createdAt": "2026-04-02T19:15:06.467Z",
-    "read": false
+    "read": true
   },
   {
     "type": "system",
@@ -69,7 +69,7 @@
     "link": "/uplink",
     "id": "notif_1775155592196_icggg",
     "createdAt": "2026-04-02T18:46:32.196Z",
-    "read": false
+    "read": true
   },
   {
     "type": "system",
@@ -78,7 +78,7 @@
     "link": "/uplink",
     "id": "notif_1775155581885_yss3g",
     "createdAt": "2026-04-02T18:46:21.886Z",
-    "read": false
+    "read": true
   },
   {
     "type": "system",
@@ -87,7 +87,7 @@
     "link": "/uplink",
     "id": "notif_1775155579197_24a5g",
     "createdAt": "2026-04-02T18:46:19.198Z",
-    "read": false
+    "read": true
   },
   {
     "type": "system",
