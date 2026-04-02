@@ -4,6 +4,15 @@
     "title": "Asset Rejected",
     "message": "Your asset \"test\" was rejected by moderation.\nReason: No reason provided.",
     "link": "/uplink",
+    "id": "notif_1775155587290_uuqqg",
+    "createdAt": "2026-04-02T18:46:27.290Z",
+    "read": false
+  },
+  {
+    "type": "system",
+    "title": "Asset Rejected",
+    "message": "Your asset \"test\" was rejected by moderation.\nReason: No reason provided.",
+    "link": "/uplink",
     "id": "notif_1775155583390_4h6wk",
     "createdAt": "2026-04-02T18:46:23.391Z",
     "read": false
