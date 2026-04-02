@@ -16,5 +16,6 @@
   "ownerUsername": "excalibur",
   "status": "pending",
   "thumbnailUrl": "/api/proxy/thumbnail?assetId=asset_1775158003798_6f84w&type=thumbnail",
-  "downloads": 1
+  "downloads": 1,
+  "likesCount": 1
 }
