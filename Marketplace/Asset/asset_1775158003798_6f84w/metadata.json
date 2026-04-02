@@ -1,0 +1,18 @@
+{
+  "id": "asset_1775158003798_6f84w",
+  "ownerId": "108578027243443196278",
+  "author": "EXCALIBUR",
+  "authorPicture": "https://lh3.googleusercontent.com/a/ACg8ocIG6atjZk3j17lrPesukyA0RGHDlAQTPSSTRUEMRsDFdRIhXv4=s96-c",
+  "title": "test",
+  "description": " ",
+  "price": "Free",
+  "isLimited": true,
+  "maxDownloads": 9,
+  "tags": [
+    "Unverified"
+  ],
+  "extension": ".rbxm",
+  "createdAt": "2026-04-02T19:26:43.798Z",
+  "ownerUsername": "excalibur",
+  "status": "pending"
+}
