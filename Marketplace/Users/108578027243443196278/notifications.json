@@ -2,6 +2,15 @@
   {
     "type": "system",
     "title": "Asset Rejected",
+    "message": "Your asset \"asa\" was rejected by moderation.\nReason: No reason provided.",
+    "link": "/uplink",
+    "id": "notif_1775157309899_4i9y6",
+    "createdAt": "2026-04-02T19:15:09.899Z",
+    "read": false
+  },
+  {
+    "type": "system",
+    "title": "Asset Rejected",
     "message": "Your asset \"mahito hand \" was rejected by moderation.\nReason: No reason provided.",
     "link": "/uplink",
     "id": "notif_1775157306467_j0pfd",
