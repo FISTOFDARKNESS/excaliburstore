@@ -6,7 +6,7 @@
     "link": "/uplink",
     "id": "notif_1775155589967_8als8",
     "createdAt": "2026-04-02T18:46:29.967Z",
-    "read": false
+    "read": true
   },
   {
     "type": "system",
@@ -15,7 +15,7 @@
     "link": "/uplink",
     "id": "notif_1775155587290_uuqqg",
     "createdAt": "2026-04-02T18:46:27.290Z",
-    "read": false
+    "read": true
   },
   {
     "type": "system",
@@ -24,7 +24,7 @@
     "link": "/uplink",
     "id": "notif_1775155583390_4h6wk",
     "createdAt": "2026-04-02T18:46:23.391Z",
-    "read": false
+    "read": true
   },
   {
     "type": "system",
@@ -33,7 +33,7 @@
     "link": "/uplink",
     "id": "notif_1775155580313_2siq9",
     "createdAt": "2026-04-02T18:46:20.313Z",
-    "read": false
+    "read": true
   },
   {
     "type": "system",
