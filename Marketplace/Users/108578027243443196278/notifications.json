@@ -1,5 +1,14 @@
 [
   {
+    "type": "system",
+    "title": "Asset Rejected",
+    "message": "Your asset \"aa\" was rejected by moderation.\nReason: k",
+    "link": "/uplink",
+    "id": "notif_1775150204948_4ofu8",
+    "createdAt": "2026-04-02T17:16:44.948Z",
+    "read": false
+  },
+  {
     "type": "download",
     "title": "Asset Downloaded",
     "message": "Someone downloaded your asset \"Mahito Hand aura\"!",
