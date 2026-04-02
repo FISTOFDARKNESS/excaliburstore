@@ -1,6 +1,15 @@
 [
   {
     "type": "system",
+    "title": "Asset Rejected",
+    "message": "Your asset \"Mahito Hand aura\" was rejected by moderation.\nReason: No reason provided.",
+    "link": "/uplink",
+    "id": "notif_1775161875735_68it6",
+    "createdAt": "2026-04-02T20:31:15.735Z",
+    "read": false
+  },
+  {
+    "type": "system",
     "title": "Account Verified",
     "message": "Congratulations! Your account has been verified by the admins.",
     "link": "/profile/excalibur",
