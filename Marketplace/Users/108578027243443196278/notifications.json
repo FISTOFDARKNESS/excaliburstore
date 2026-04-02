@@ -1,6 +1,15 @@
 [
   {
     "type": "system",
+    "title": "Account Verified",
+    "message": "Congratulations! Your account has been verified by the admins.",
+    "link": "/profile/excalibur",
+    "id": "notif_1775159007409_n1nq1",
+    "createdAt": "2026-04-02T19:43:27.410Z",
+    "read": false
+  },
+  {
+    "type": "system",
     "title": "Asset Rejected",
     "message": "Your asset \"test\" was rejected by moderation.\nReason: No reason provided.",
     "link": "/uplink",
