@@ -2,6 +2,15 @@
   {
     "type": "download",
     "title": "Asset Downloaded",
+    "message": "Someone downloaded your asset \"Mahito Hand aura\"!",
+    "link": "/asset/asset_1775147672516_hdxuv",
+    "id": "notif_1775148281775_0tp1y",
+    "createdAt": "2026-04-02T16:44:41.775Z",
+    "read": false
+  },
+  {
+    "type": "download",
+    "title": "Asset Downloaded",
     "message": "Someone downloaded your asset \"Ichigo AfterImage\"!",
     "link": "/asset/asset_1772897977123_comuk",
     "id": "notif_1775148086319_q7rru",
