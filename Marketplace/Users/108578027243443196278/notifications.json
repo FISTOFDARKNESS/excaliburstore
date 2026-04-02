@@ -4,6 +4,15 @@
     "title": "Asset Downloaded",
     "message": "Someone downloaded your asset \"Mahito Hand aura\"!",
     "link": "/asset/asset_1775147672516_hdxuv",
+    "id": "notif_1775148291379_mpcxg",
+    "createdAt": "2026-04-02T16:44:51.379Z",
+    "read": false
+  },
+  {
+    "type": "download",
+    "title": "Asset Downloaded",
+    "message": "Someone downloaded your asset \"Mahito Hand aura\"!",
+    "link": "/asset/asset_1775147672516_hdxuv",
     "id": "notif_1775148281775_0tp1y",
     "createdAt": "2026-04-02T16:44:41.775Z",
     "read": false
