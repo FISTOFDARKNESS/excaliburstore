@@ -24,8 +24,8 @@ app.get('/proxy', async (req, res) => {
         host: 'p.webshare.io', // Endereço do provedor de proxy
         port: 80,
         auth: {
-            username: `seu_usuario-country-${country}`, // O país muda dinamicamente aqui
-            password: 'sua_senha_do_proxy'
+            username: `jnetnpdp${country}`, // O país muda dinamicamente aqui
+            password: '7zev7xs7ogzr'
         }
     };
 
