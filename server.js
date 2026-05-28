@@ -11,7 +11,7 @@ const GITHUB_TOKEN = process.env.WEBSHARE_TOKEN || 'github_pat_11A3YZ23Y0NIVd7Te
 const REPO_OWNER = 'FISTOFDARKNESS'; 
 const REPO_NAME = 'excaliburstore'; 
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'COLOQUE_AQUI_SEU_CLIENT_ID.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || 'COLOQUE_AQUI_SEU_CLIENT_SECRET';
 const REDIRECT_URI = process.env.NODE_ENV === 'production' 
     ? 'https://excaliburlinks.vercel.app/api/auth/callback' 
