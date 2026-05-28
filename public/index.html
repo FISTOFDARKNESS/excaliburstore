@@ -54,7 +54,6 @@
         .viewport-area { flex: 1; position: relative; background-color: #ffffff; display: block; }
         .sandbox-iframe { width: 100%; height: 100%; border: none; display: block; }
 
-        /* Viewport Alternativo para a Galeria de Fotos Interna */
         .gallery-view { flex: 1; display: none; padding: 2rem; overflow-y: auto; background: var(--bg-primary); }
         .gallery-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
         
@@ -62,7 +61,7 @@
         .form-card { background: var(--bg-surface); border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 8px; height: fit-content; }
         .form-group { margin-bottom: 1.2rem; display: flex; flex-direction: column; gap: 0.5rem; }
         .form-group label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
-        .form-group input, .form-group select { background: var(--bg-primary); border: 1px solid var(--border-color); padding: 0.6rem; border-radius: 4px; color: white; outline: none; }
+        .form-group input { background: var(--bg-primary); border: 1px solid var(--border-color); padding: 0.6rem; border-radius: 4px; color: white; outline: none; }
         
         .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
         .folder-card { background: var(--bg-surface); border: 1px solid var(--border-color); padding: 1rem; border-radius: 6px; cursor: pointer; position: relative; }
@@ -98,7 +97,7 @@
     <main class="gallery-view" id="viewportPhotos">
         <div class="gallery-header">
             <h2>Cloud Photo Cluster</h2>
-            <button class="action-btn" id="googleLoginBtn" onclick="simulateGoogleLogin()">Sign in with Google</button>
+            <button class="action-btn" id="googleLoginBtn" onclick="redirectToGoogleAuth()">Sign in with Google</button>
             <span id="userInfo" style="display:none; color: var(--success); font-size: 0.9rem;"></span>
         </div>
 
@@ -149,6 +148,21 @@
         let activeFolders = [];
         let selectedFolderId = null;
 
+        function checkAuth() {
+            const storedUser = localStorage.getItem('aura_user');
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+                document.getElementById('googleLoginBtn').style.display = 'none';
+                document.getElementById('userInfo').style.display = 'inline';
+                document.getElementById('userInfo').textContent = `👤 ${currentUser.email}`;
+                document.getElementById('connectionState').textContent = `Logged in as: ${currentUser.email}`;
+            }
+        }
+
+        function redirectToGoogleAuth() {
+            window.location.href = '/api/auth/google';
+        }
+
         function toggleView(view) {
             if(view === 'photos') {
                 document.getElementById('viewportBrowser').style.display = 'none';
@@ -157,6 +171,7 @@
                 document.getElementById('viewportPhotos').style.display = 'block';
                 document.getElementById('btnBrowser').style.display = 'block';
                 window.history.pushState({}, '', '/photos');
+                checkAuth();
                 loadFolders();
             } else {
                 document.getElementById('viewportBrowser').style.display = 'block';
@@ -186,24 +201,6 @@
 
         document.getElementById('targetUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') requestSecureTunnel(); });
 
-        /* --- SISTEMA DE FOTOS & AUTENTICAÇÃO --- */
-        
-        function simulateGoogleLogin() {
-            const email = prompt("Enter your Google Account email:");
-            if(!email) return;
-            
-            if(!email.endsWith('@enaip.piemonte.it')) {
-                alert("Access Denied. Internal protocol restricts logic to accounts ending with @enaip.piemonte.it");
-                return;
-            }
-
-            currentUser = { email: email, name: email.split('@')[0] };
-            document.getElementById('googleLoginBtn').style.display = 'none';
-            document.getElementById('userInfo').style.display = 'inline';
-            document.getElementById('userInfo').textContent = `👤 ${currentUser.email}`;
-            document.getElementById('connectionState').textContent = `Logged in as: ${currentUser.email}`;
-        }
-
         async function loadFolders() {
             try {
                 const res = await fetch('/api/folders');
@@ -218,7 +215,7 @@
                     el.innerHTML = `<div class="folder-icon">📁</div><div><strong>${folder.name}</strong></div><div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.4rem;">Creator: ${folder.allowedCreator}</div>`;
                     container.appendChild(el);
                 });
-            } catch (err) { console.error("Error fetching folder registry."); }
+            } catch (err) { console.error("Error fetching folders."); }
         }
 
         async function createFolder() {
@@ -257,13 +254,13 @@
 
         async function loadPhotos(folderId) {
             const container = document.getElementById('photosContainer');
-            container.innerHTML = 'Loading assets from repository...';
+            container.innerHTML = 'Loading assets...';
             
             const res = await fetch(`/api/photos?folderId=${folderId}`);
             const photos = await res.json();
             container.innerHTML = '';
 
-            if(photos.length === 0) container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem;">No assets found in this node.</div>';
+            if(photos.length === 0) container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem;">No assets found.</div>';
 
             photos.forEach(url => {
                 const img = document.createElement('img');
@@ -295,7 +292,7 @@
                 });
 
                 if(res.ok) {
-                    document.getElementById('connectionState').textContent = 'Repository state updated successfully.';
+                    document.getElementById('connectionState').textContent = 'Repository state updated.';
                     fileInput.value = '';
                     loadPhotos(selectedFolderId);
                 } else {
@@ -306,4 +303,5 @@
         }
     </script>
 </body>
-</html>
+                    </html>
+                                                             
