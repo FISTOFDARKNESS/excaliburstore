@@ -13,23 +13,11 @@
             --accent-hover: #6366f1;
             --text-main: #f4f4f5;
             --text-muted: #71717a;
+            --success: #10b981;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        body {
-            background-color: var(--bg-primary);
-            color: var(--text-main);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { background-color: var(--bg-primary); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
         .nav-container {
             background-color: var(--bg-surface);
@@ -41,131 +29,281 @@
             z-index: 10;
         }
 
-        .branding {
-            font-weight: 700;
-            font-size: 0.9rem;
-            letter-spacing: 1px;
-            color: var(--text-main);
-            text-transform: uppercase;
-        }
-
-        .address-bar-wrapper {
-            flex: 1;
-            display: flex;
-            background-color: var(--bg-primary);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 0.25rem 0.5rem;
-            transition: border-color 0.2s ease;
-        }
-
-        .address-bar-wrapper:focus-within {
-            border-color: var(--accent-color);
-        }
-
-        .address-input {
-            width: 100%;
+        .branding-group { display: flex; align-items: center; gap: 1rem; }
+        .branding { font-weight: 700; font-size: 0.9rem; letter-spacing: 1px; text-transform: uppercase; }
+        
+        .photos-redirect-btn {
             background: transparent;
-            border: none;
-            outline: none;
-            color: var(--text-main);
-            font-size: 0.9rem;
-            padding: 0.5rem;
-        }
-
-        .action-btn {
-            background-color: var(--accent-color);
-            color: var(--text-main);
-            border: none;
-            padding: 0.55rem 1.25rem;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-
-        .action-btn:hover {
-            background-color: var(--accent-hover);
-        }
-
-        .viewport-area {
-            flex: 1;
-            position: relative;
-            background-color: #ffffff;
-        }
-
-        .sandbox-iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            background-color: #ffffff;
-            display: block;
-        }
-
-        .status-bar {
-            background-color: var(--bg-surface);
-            border-top: 1px solid var(--border-color);
-            padding: 0.4rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.75rem;
             color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            padding: 0.4rem 0.8rem;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
         }
+        .photos-redirect-btn:hover { color: var(--text-main); border-color: var(--accent-color); background-color: rgba(79, 70, 229, 0.1); }
+
+        .address-bar-wrapper { flex: 1; display: flex; background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.25rem 0.5rem; }
+        .address-input { width: 100%; background: transparent; border: none; outline: none; color: var(--text-main); font-size: 0.9rem; padding: 0.5rem; }
+        
+        .action-btn { background-color: var(--accent-color); color: var(--text-main); border: none; padding: 0.55rem 1.25rem; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+        .action-btn:hover { background-color: var(--accent-hover); }
+
+        .viewport-area { flex: 1; position: relative; background-color: #ffffff; display: block; }
+        .sandbox-iframe { width: 100%; height: 100%; border: none; display: block; }
+
+        /* Viewport Alternativo para a Galeria de Fotos Interna */
+        .gallery-view { flex: 1; display: none; padding: 2rem; overflow-y: auto; background: var(--bg-primary); }
+        .gallery-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
+        
+        .panel-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; }
+        .form-card { background: var(--bg-surface); border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 8px; height: fit-content; }
+        .form-group { margin-bottom: 1.2rem; display: flex; flex-direction: column; gap: 0.5rem; }
+        .form-group label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
+        .form-group input, .form-group select { background: var(--bg-primary); border: 1px solid var(--border-color); padding: 0.6rem; border-radius: 4px; color: white; outline: none; }
+        
+        .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+        .folder-card { background: var(--bg-surface); border: 1px solid var(--border-color); padding: 1rem; border-radius: 6px; cursor: pointer; position: relative; }
+        .folder-card:hover { border-color: var(--accent-color); }
+        .folder-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+
+        .photo-viewer { display: none; margin-top: 2rem; }
+        .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; margin-top: 1rem; }
+        .photo-item { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-color); }
+
+        .status-bar { background-color: var(--bg-surface); border-top: 1px solid var(--border-color); padding: 0.4rem 1.5rem; display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); }
     </style>
 </head>
 <body>
 
     <header class="nav-container">
-        <div class="branding">Aura // Engine</div>
-        <div class="address-bar-wrapper">
+        <div class="branding-group">
+            <div class="branding">Aura // Engine</div>
+            <button class="photos-redirect-btn" onclick="toggleView('photos')">📁 Gallery System</button>
+            <button class="photos-redirect-btn" id="btnBrowser" style="display:none;" onclick="toggleView('browser')">🌐 Web Browser</button>
+        </div>
+        
+        <div class="address-bar-wrapper" id="barBrowser">
             <input type="text" id="targetUrl" class="address-input" placeholder="Enter target URL securely..." autocomplete="off">
         </div>
-        <button onclick="requestSecureTunnel()" class="action-btn">Connect</button>
+        <button onclick="requestSecureTunnel()" id="btnConnect" class="action-btn">Connect</button>
     </header>
 
-    <main class="viewport-area">
+    <main class="viewport-area" id="viewportBrowser">
         <iframe id="secureFrame" class="sandbox-iframe" src="about:blank" sandbox="allow-scripts allow-forms"></iframe>
+    </main>
+
+    <main class="gallery-view" id="viewportPhotos">
+        <div class="gallery-header">
+            <h2>Cloud Photo Cluster</h2>
+            <button class="action-btn" id="googleLoginBtn" onclick="simulateGoogleLogin()">Sign in with Google</button>
+            <span id="userInfo" style="display:none; color: var(--success); font-size: 0.9rem;"></span>
+        </div>
+
+        <div class="panel-grid">
+            <div class="form-card">
+                <div id="folderForm" style="margin-bottom: 2rem;">
+                    <h3>Create Secure Folder</h3>
+                    <div class="form-group" style="margin-top:1rem;">
+                        <label>Folder Name</label>
+                        <input type="text" id="newFolderName" placeholder="ex: Graphic Design Class">
+                    </div>
+                    <div class="form-group">
+                        <label>Allowed Creator (Gmail Address)</label>
+                        <input type="email" id="allowedCreatorEmail" placeholder="must end with @enaip.piemonte.it">
+                    </div>
+                    <button class="action-btn" style="width:100%" onclick="createFolder()">Deploy Folder</button>
+                </div>
+
+                <div id="uploadForm" style="display:none;">
+                    <h3>Upload Asset to Repo</h3>
+                    <div class="form-group" style="margin-top:1rem;">
+                        <label>Select File</label>
+                        <input type="file" id="photoFile" accept="image/*">
+                    </div>
+                    <button class="action-btn" style="width:100%; background: var(--success);" onclick="uploadPhoto()">Push to GitHub</button>
+                </div>
+            </div>
+
+            <div>
+                <h3>Active Directories (All Users Can View)</h3>
+                <div class="folder-grid" id="foldersContainer" style="margin-top: 1rem;"></div>
+
+                <div class="photo-viewer" id="photoViewerSection">
+                    <h3 id="currentFolderNameText">Photos</h3>
+                    <div class="photo-grid" id="photosContainer"></div>
+                </div>
+            </div>
+        </div>
     </main>
 
     <footer class="status-bar">
         <span id="connectionState">Status: Idle</span>
-        <span>Isolated Sandbox Layer v2.1.0</span>
+        <span>Isolated Sandbox Layer v2.2.0</span>
     </footer>
 
     <script>
+        let currentUser = null;
+        let activeFolders = [];
+        let selectedFolderId = null;
+
+        function toggleView(view) {
+            if(view === 'photos') {
+                document.getElementById('viewportBrowser').style.display = 'none';
+                document.getElementById('barBrowser').style.display = 'none';
+                document.getElementById('btnConnect').style.display = 'none';
+                document.getElementById('viewportPhotos').style.display = 'block';
+                document.getElementById('btnBrowser').style.display = 'block';
+                window.history.pushState({}, '', '/photos');
+                loadFolders();
+            } else {
+                document.getElementById('viewportBrowser').style.display = 'block';
+                document.getElementById('barBrowser').style.display = 'flex';
+                document.getElementById('btnConnect').style.display = 'block';
+                document.getElementById('viewportPhotos').style.display = 'none';
+                document.getElementById('btnBrowser').style.display = 'none';
+                window.history.pushState({}, '', '/');
+            }
+        }
+
+        if(window.location.pathname === '/photos') { toggleView('photos'); }
+
         async function requestSecureTunnel() {
             const inputField = document.getElementById('targetUrl');
             const iframe = document.getElementById('secureFrame');
             const statusText = document.getElementById('connectionState');
-            
             let rawUrl = inputField.value.trim();
             if (!rawUrl) return;
+            if (!/^https?:\/\//i.test(rawUrl)) rawUrl = 'https://' + rawUrl;
+            statusText.textContent = 'Connecting to isolated node...';
+            try {
+                iframe.src = `/proxy?url=${encodeURIComponent(rawUrl)}`;
+                iframe.onload = () => { statusText.textContent = `Securely tunneled: ${rawUrl}`; };
+            } catch (err) { statusText.textContent = 'Tunnel connection failure.'; }
+        }
 
-            if (!/^https?:\/\//i.test(rawUrl)) {
-                rawUrl = 'https://' + rawUrl;
+        document.getElementById('targetUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') requestSecureTunnel(); });
+
+        /* --- SISTEMA DE FOTOS & AUTENTICAÇÃO --- */
+        
+        function simulateGoogleLogin() {
+            const email = prompt("Enter your Google Account email:");
+            if(!email) return;
+            
+            if(!email.endsWith('@enaip.piemonte.it')) {
+                alert("Access Denied. Internal protocol restricts logic to accounts ending with @enaip.piemonte.it");
+                return;
             }
 
-            statusText.textContent = 'Connecting to isolated node...';
-            statusText.style.color = 'var(--accent-hover)';
+            currentUser = { email: email, name: email.split('@')[0] };
+            document.getElementById('googleLoginBtn').style.display = 'none';
+            document.getElementById('userInfo').style.display = 'inline';
+            document.getElementById('userInfo').textContent = `👤 ${currentUser.email}`;
+            document.getElementById('connectionState').textContent = `Logged in as: ${currentUser.email}`;
+        }
 
+        async function loadFolders() {
             try {
-                const proxyEndpoint = `/proxy?url=${encodeURIComponent(rawUrl)}`;
-                iframe.src = proxyEndpoint;
+                const res = await fetch('/api/folders');
+                activeFolders = await res.json();
+                const container = document.getElementById('foldersContainer');
+                container.innerHTML = '';
                 
-                iframe.onload = () => {
-                    statusText.textContent = `Securely tunneled: ${rawUrl}`;
-                    statusText.style.color = '#10b981';
-                };
-            } catch (err) {
-                statusText.textContent = 'Tunnel connection failure.';
-                statusText.style.color = '#ef4444';
+                activeFolders.forEach(folder => {
+                    const el = document.createElement('div');
+                    el.className = 'folder-card';
+                    el.onclick = () => openFolder(folder.id, folder.name, folder.allowedCreator);
+                    el.innerHTML = `<div class="folder-icon">📁</div><div><strong>${folder.name}</strong></div><div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.4rem;">Creator: ${folder.allowedCreator}</div>`;
+                    container.appendChild(el);
+                });
+            } catch (err) { console.error("Error fetching folder registry."); }
+        }
+
+        async function createFolder() {
+            const name = document.getElementById('newFolderName').value.trim();
+            const allowedEmail = document.getElementById('allowedCreatorEmail').value.trim();
+
+            if(!name || !allowedEmail) return alert("Fields cannot be empty.");
+            if(!allowedEmail.endsWith('@enaip.piemonte.it')) return alert("Target restriction rule must match @enaip.piemonte.it");
+
+            const res = await fetch('/api/folders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, allowedCreator: allowedEmail })
+            });
+
+            if(res.ok) {
+                document.getElementById('newFolderName').value = '';
+                document.getElementById('allowedCreatorEmail').value = '';
+                loadFolders();
             }
         }
 
-        document.getElementById('targetUrl').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') requestSecureTunnel();
-        });
+        async function openFolder(id, name, allowedCreator) {
+            selectedFolderId = id;
+            document.getElementById('photoViewerSection').style.display = 'block';
+            document.getElementById('currentFolderNameText').textContent = `Directory: ${name}`;
+            
+            if(currentUser && currentUser.email === allowedCreator) {
+                document.getElementById('uploadForm').style.display = 'block';
+            } else {
+                document.getElementById('uploadForm').style.display = 'none';
+            }
+
+            loadPhotos(id);
+        }
+
+        async function loadPhotos(folderId) {
+            const container = document.getElementById('photosContainer');
+            container.innerHTML = 'Loading assets from repository...';
+            
+            const res = await fetch(`/api/photos?folderId=${folderId}`);
+            const photos = await res.json();
+            container.innerHTML = '';
+
+            if(photos.length === 0) container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem;">No assets found in this node.</div>';
+
+            photos.forEach(url => {
+                const img = document.createElement('img');
+                img.src = url;
+                img.className = 'photo-item';
+                container.appendChild(img);
+            });
+        }
+
+        async function uploadPhoto() {
+            const fileInput = document.getElementById('photoFile');
+            if(!fileInput.files[0] || !selectedFolderId) return alert("Please select an asset.");
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            document.getElementById('connectionState').textContent = 'Pushing payload to GitHub...';
+
+            reader.onloadend = async () => {
+                const base64Data = reader.result.split(',')[1];
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        folderId: selectedFolderId,
+                        filename: file.name,
+                        content: base64Data
+                    })
+                });
+
+                if(res.ok) {
+                    document.getElementById('connectionState').textContent = 'Repository state updated successfully.';
+                    fileInput.value = '';
+                    loadPhotos(selectedFolderId);
+                } else {
+                    document.getElementById('connectionState').textContent = 'Push failure.';
+                }
+            };
+            reader.readAsDataURL(file);
+        }
     </script>
 </body>
 </html>
