@@ -31,7 +31,6 @@
             overflow: hidden;
         }
 
-        /* Top Navigation Bar */
         .nav-container {
             background-color: var(--bg-surface);
             border-bottom: 1px solid var(--border-color);
@@ -74,23 +73,6 @@
             padding: 0.5rem;
         }
 
-        /* Custom Premium Select Styling */
-        .region-select {
-            background-color: var(--bg-primary);
-            color: var(--text-main);
-            border: 1px solid var(--border-color);
-            padding: 0.55rem 0.75rem;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            outline: none;
-            cursor: pointer;
-            transition: border-color 0.2s ease;
-        }
-
-        .region-select:focus {
-            border-color: var(--accent-color);
-        }
-
         .action-btn {
             background-color: var(--accent-color);
             color: var(--text-main);
@@ -107,7 +89,6 @@
             background-color: var(--accent-hover);
         }
 
-        /* Virtual Viewport Wrapper */
         .viewport-area {
             flex: 1;
             position: relative;
@@ -122,7 +103,6 @@
             display: block;
         }
 
-        /* UI Overlay Utilities */
         .status-bar {
             background-color: var(--bg-surface);
             border-top: 1px solid var(--border-color);
@@ -138,23 +118,14 @@
 
     <header class="nav-container">
         <div class="branding">Aura // Engine</div>
-        
         <div class="address-bar-wrapper">
-            <input type="text" id="targetUrl" class="address-input" placeholder="Enter target URL securely (e.g., targetsite.com)..." autocomplete="off">
+            <input type="text" id="targetUrl" class="address-input" placeholder="Enter target URL securely..." autocomplete="off">
         </div>
-
-        <select id="countrySelect" class="region-select">
-            <option value="US">🇺🇸 United States</option>
-            <option value="BR">🇧🇷 Brazil</option>
-            <option value="JP">🇯🇵 Japan</option>
-            <option value="DE">🇩🇪 Germany</option>
-        </select>
-
         <button onclick="requestSecureTunnel()" class="action-btn">Connect</button>
     </header>
 
     <main class="viewport-area">
-        <iframe id="secureFrame" class="sandbox-iframe" src="about:blank" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+        <iframe id="secureFrame" class="sandbox-iframe" src="about:blank" sandbox="allow-scripts allow-forms"></iframe>
     </main>
 
     <footer class="status-bar">
@@ -165,39 +136,33 @@
     <script>
         async function requestSecureTunnel() {
             const inputField = document.getElementById('targetUrl');
-            const countryField = document.getElementById('countrySelect');
             const iframe = document.getElementById('secureFrame');
             const statusText = document.getElementById('connectionState');
             
             let rawUrl = inputField.value.trim();
             if (!rawUrl) return;
 
-            const selectedCountry = countryField.value;
-
-            // Normalize URL format
             if (!/^https?:\/\//i.test(rawUrl)) {
                 rawUrl = 'https://' + rawUrl;
             }
 
-            statusText.textContent = `Routing tunnel via proxy nodes [${selectedCountry}]...`;
+            statusText.textContent = 'Connecting to isolated node...';
             statusText.style.color = 'var(--accent-hover)';
 
             try {
-                // Route request via backend proxy engine passing both URL and Country params
-                const proxyEndpoint = `/proxy?url=${encodeURIComponent(rawUrl)}&country=${selectedCountry}`;
+                const proxyEndpoint = `/proxy?url=${encodeURIComponent(rawUrl)}`;
                 iframe.src = proxyEndpoint;
                 
                 iframe.onload = () => {
-                    statusText.textContent = `Securely tunneled [Exit Region: ${selectedCountry}]: ${rawUrl}`;
-                    statusText.style.color = '#10b981'; // Success Green
+                    statusText.textContent = `Securely tunneled: ${rawUrl}`;
+                    statusText.style.color = '#10b981';
                 };
             } catch (err) {
-                statusText.textContent = `Tunnel connection failure.`;
-                statusText.style.color = '#ef4444'; // Error Red
+                statusText.textContent = 'Tunnel connection failure.';
+                statusText.style.color = '#ef4444';
             }
         }
 
-        // Handle physical key execution
         document.getElementById('targetUrl').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') requestSecureTunnel();
         });
