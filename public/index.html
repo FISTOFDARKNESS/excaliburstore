@@ -74,12 +74,29 @@
             padding: 0.5rem;
         }
 
+        /* Custom Premium Select Styling */
+        .region-select {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 0.55rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+        }
+
+        .region-select:focus {
+            border-color: var(--accent-color);
+        }
+
         .action-btn {
             background-color: var(--accent-color);
             color: var(--text-main);
             border: none;
-            padding: 0.5rem 1.25rem;
-            border-radius: 4px;
+            padding: 0.55rem 1.25rem;
+            border-radius: 6px;
             font-weight: 600;
             font-size: 0.85rem;
             cursor: pointer;
@@ -121,9 +138,18 @@
 
     <header class="nav-container">
         <div class="branding">Aura // Engine</div>
+        
         <div class="address-bar-wrapper">
             <input type="text" id="targetUrl" class="address-input" placeholder="Enter target URL securely (e.g., targetsite.com)..." autocomplete="off">
         </div>
+
+        <select id="countrySelect" class="region-select">
+            <option value="US">🇺🇸 United States</option>
+            <option value="BR">🇧🇷 Brazil</option>
+            <option value="JP">🇯🇵 Japan</option>
+            <option value="DE">🇩🇪 Germany</option>
+        </select>
+
         <button onclick="requestSecureTunnel()" class="action-btn">Connect</button>
     </header>
 
@@ -139,27 +165,30 @@
     <script>
         async function requestSecureTunnel() {
             const inputField = document.getElementById('targetUrl');
+            const countryField = document.getElementById('countrySelect');
             const iframe = document.getElementById('secureFrame');
             const statusText = document.getElementById('connectionState');
             
             let rawUrl = inputField.value.trim();
             if (!rawUrl) return;
 
+            const selectedCountry = countryField.value;
+
             // Normalize URL format
             if (!/^https?:\/\//i.test(rawUrl)) {
                 rawUrl = 'https://' + rawUrl;
             }
 
-            statusText.textContent = `Connecting to isolated node...`;
+            statusText.textContent = `Routing tunnel via proxy nodes [${selectedCountry}]...`;
             statusText.style.color = 'var(--accent-hover)';
 
             try {
-                // Route request via the Node.js middleware endpoint
-                const proxyEndpoint = `/proxy?url=${encodeURIComponent(rawUrl)}`;
+                // Route request via backend proxy engine passing both URL and Country params
+                const proxyEndpoint = `/proxy?url=${encodeURIComponent(rawUrl)}&country=${selectedCountry}`;
                 iframe.src = proxyEndpoint;
                 
                 iframe.onload = () => {
-                    statusText.textContent = `Securely tunneled: ${rawUrl}`;
+                    statusText.textContent = `Securely tunneled [Exit Region: ${selectedCountry}]: ${rawUrl}`;
                     statusText.style.color = '#10b981'; // Success Green
                 };
             } catch (err) {
@@ -173,13 +202,5 @@
             if (e.key === 'Enter') requestSecureTunnel();
         });
     </script>
-    <select id="countrySelect" style="background: #121216; color: white; border: 1px solid #22222a; padding: 0.5rem; border-radius: 4px;">
-    <option value="US">🇺🇸 United States</option>
-    <option value="BR">🇧🇷 Brazil</option>
-    <option value="JP">🇯🇵 Japan</option>
-    <option value="DE">🇩🇪 Germany</option>
-    </select>
-    
 </body>
-  </html>
-  
+</html>
