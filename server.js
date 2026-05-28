@@ -8,12 +8,17 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const GITHUB_TOKEN = process.env.WEBSHARE_TOKEN || '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';
-const REPO_OWNER = 'kaio-adrik'; 
-const REPO_NAME = 'aura-storage-cdn'; // Altere para o nome do seu repositório no GitHub
+const REPO_OWNER = 'FISTOFDARKNESS'; 
+const REPO_NAME = 'excaliburstore'; 
 
-// Banco de dados em memória para manter o registro das pastas criadas
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'COLOQUE_AQUI_SEU_CLIENT_ID.apps.googleusercontent.com';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || 'COLOQUE_AQUI_SEU_CLIENT_SECRET';
+const REDIRECT_URI = process.env.NODE_ENV === 'production' 
+    ? 'https://excaliburlinks.vercel.app/api/auth/callback' 
+    : 'http://localhost:3000/api/auth/callback';
+
 let foldersRegistry = [
-    { id: "sample-123", name: "Default Design Folder", allowedCreator: "teacher@enaip.piemonte.it" }
+    { id: "design-core", name: "Enaip Graphic Design", allowedCreator: "admin@enaip.piemonte.it" }
 ];
 
 app.get('/proxy', async (req, res) => {
@@ -56,7 +61,44 @@ app.get('/proxy', async (req, res) => {
     }
 });
 
-/* --- API PARA REPOSITÓRIO DE FOTOS --- */
+app.get('/api/auth/google', (req, res) => {
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=profile%20email`;
+    res.redirect(url);
+});
+
+app.get('/api/auth/callback', async (req, res) => {
+    const { code } = req.query;
+    if (!code) return res.status(400).send('Authorization code missing.');
+
+    try {
+        const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
+            code,
+            client_id: GOOGLE_CLIENT_ID,
+            client_secret: GOOGLE_CLIENT_SECRET,
+            redirect_uri: REDIRECT_URI,
+            grant_type: 'authorization_code'
+        });
+
+        const { access_token } = tokenResponse.data;
+
+        const userResponse = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${access_token}` }
+        });
+
+        const userData = userResponse.data;
+
+        if (!userData.email.endsWith('@enaip.piemonte.it')) {
+            return res.send(`<script>alert('Access Denied. Only @enaip.piemonte.it accounts allowed.'); window.location.href='/photos';</script>`);
+        }
+
+        res.send(`<script>
+            localStorage.setItem('aura_user', JSON.stringify({ email: '${userData.email}', name: '${userData.name}' }));
+            window.location.href = '/photos';
+        </script>`);
+    } catch (error) {
+        res.status(500).send('Authentication failed.');
+    }
+});
 
 app.get('/api/folders', (req, res) => {
     res.json(foldersRegistry);
@@ -80,29 +122,25 @@ app.get('/api/photos', async (req, res) => {
     if(!folderId) return res.status(400).send('Folder ID missing.');
 
     try {
-        // Puxa a lista de arquivos da pasta correspondente direto da API do GitHub
         const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/gallery/${folderId}`;
         const response = await axios.get(url, {
             headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
         });
 
-        // Transforma o array de arquivos em links brutos (raw download urls) públicos
         const photoUrls = response.data
             .filter(file => file.type === 'file' && /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name))
             .map(file => file.download_url);
 
         res.json(photoUrls);
     } catch (error) {
-        // Se a pasta ainda não tiver arquivos, o GitHub retorna 404, tratamos como lista vazia
         res.json([]);
     }
 });
 
 app.post('/api/upload', async (req, res) => {
     const { folderId, filename, content } = req.body;
-    if(!folderId || !filename || !content) return res.status(400).send('Payload metadata complete drop.');
+    if(!folderId || !filename || !content) return res.status(400).send('Payload incomplete.');
 
-    // Sanitiza o nome do arquivo para evitar quebras de caminho Unix/Git
     const cleanFilename = `${Date.now()}_${filename.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
     const targetPath = `gallery/${folderId}/${cleanFilename}`;
 
@@ -110,20 +148,19 @@ app.post('/api/upload', async (req, res) => {
         const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${targetPath}`;
         
         await axios.put(url, {
-            message: `Cloud Upload via Aura Engine Node: ${cleanFilename}`,
-            content: content
+            message: `Upload via Aura Engine: ${cleanFilename}`,
+            content: content,
+            branch: 'main'
         }, {
             headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
         });
 
-        res.status(200).send('Asset successfully synchronized into master branch.');
+        res.status(200).send('Asset synchronized successfully.');
     } catch (error) {
-        console.error(error.response ? error.response.data : error.message);
-        res.status(500).send(`GitHub Storage Communication Fault: ${error.message}`);
+        res.status(500).send(`Storage error: ${error.message}`);
     }
 });
 
-// Suporte para SPA Routing no Vercel (Redireciona rotas de subdiretório fictício de volta para o index)
 app.get('/photos', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -133,3 +170,4 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 module.exports = app;
+    
