@@ -12,7 +12,7 @@ const REPO_OWNER = 'FISTOFDARKNESS';
 const REPO_NAME = 'excaliburstore'; 
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com';
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || 'COLOQUE_AQUI_SEU_CLIENT_SECRET';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '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';
 const REDIRECT_URI = process.env.NODE_ENV === 'production' 
     ? 'https://excaliburlinks.vercel.app/api/auth/callback' 
     : 'http://localhost:3000/api/auth/callback';
