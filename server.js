@@ -21,13 +21,15 @@ app.get('/proxy', async (req, res) => {
     // Configuração do Proxy de saída (Exemplo usando formato padrão do mercado)
     // Muitos provedores permitem mudar o país mudando o sufixo do nome de usuário (ex: user-country-BR)
     const proxyConfig = {
-        host: 'p.webshare.io', // Endereço do provedor de proxy
-        port: 80,
-        auth: {
-            username: `jnetnpdp${country}`, // O país muda dinamicamente aqui
-            password: '7zev7xs7ogzr'
-        }
-    };
+    host: 'p.webshare.io',
+    port: 80,
+    auth: {
+        // O seu token se torna o seu ID de autenticação junto com o país
+        username: `fpefy4h82b2i8231ja8j99mxwbnoykwdjegustf4-country-${country}`, 
+        password: '' // Com esse tipo de token da Webshare, a senha geralmente fica vazia ou é um padrão do painel
+    }
+};
+
 
     try {
         const response = await axios.get(targetUrl, {
