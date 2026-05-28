@@ -6,7 +6,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Serve static front-end assets cleanly
+// Servir os arquivos estáticos da pasta public (onde fica o seu index.html)
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/proxy', async (req, res) => {
@@ -16,13 +16,13 @@ app.get('/proxy', async (req, res) => {
         return res.status(400).send('Error: URL parameter is missing.');
     }
 
-    // Force protocol normalization to prevent initialization crashes
+    // Normalização de protocolo (Garante que tenha https://)
     if (!/^https?:\/\//i.test(targetUrl)) {
         targetUrl = 'https://' + targetUrl;
     }
 
     try {
-        // Execute request through an isolated instance with custom request headers
+        // Requisição HTTP avançada para buscar o site alvo
         const response = await axios.get(targetUrl, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -31,17 +31,17 @@ app.get('/proxy', async (req, res) => {
                 'Cache-Control': 'no-cache'
             },
             responseType: 'text',
-            timeout: 15000, // Prevent Vercel execution timeouts (Max 15s)
-            validateStatus: (status) => status < 500, // Process standard redirects/errors without throwing Axios exception
+            timeout: 15000, // Timeout de 15s para evitar que o Vercel trave
+            validateStatus: (status) => status < 500, // Permite processar redirects (302) sem quebrar o axios
             maxRedirects: 5
         });
 
-        // Strip incoming client security rules that block iframe execution
+        // Remove cabeçalhos de segurança originais do site que impediriam o funcionamento dentro do iframe
         res.removeHeader('X-Frame-Options');
         res.removeHeader('Content-Security-Policy');
         res.removeHeader('X-Content-Type-Options');
         
-        // Match the structural content-type payload
+        // Define cabeçalhos de resposta limpos e abertos
         res.set({
             'Content-Type': 'text/html; charset=utf-8',
             'Access-Control-Allow-Origin': '*',
@@ -49,36 +49,54 @@ app.get('/proxy', async (req, res) => {
             'Access-Control-Allow-Headers': 'Content-Type'
         });
 
-        // Parse origin URL to accurately rebuild broken relative paths
+        // Captura a origem do site para reconstruir caminhos relativos (Imagens, CSS, scripts locais)
         const parsedUrl = new URL(targetUrl);
         const baseTag = `<head><base href="${parsedUrl.origin}/">`;
         
         let modifiedHtml = response.data;
         
         if (typeof modifiedHtml === 'string') {
+            // 1. Injeta a tag <base> para corrigir caminhos quebrando
             if (modifiedHtml.includes('<head>')) {
                 modifiedHtml = modifiedHtml.replace('<head>', baseTag);
             } else {
                 modifiedHtml = baseTag + modifiedHtml;
             }
+
+            // 2. SISTEMA DE BLOQUEIO DE ANÚNCIOS (Ad-Blocker Engine)
+            // Expressões regulares que detectam e removem redes de anúncios conhecidas e scripts de popups
+            const adPatterns = [
+                /<script\b[^>]*src=["']https?:\/\/[^"']*(googlesyndication|google-analytics|doubleclick|adservice|adbrite|exponential|popads|propellerads|juicyads|exoclick|onclickads)[^"']*["'][^>]*><\/script>/gi,
+                /<ins\b[^>]*class=["']adsbygoogle["'][^>]*>([\s\S]*?)<\/ins>/gi, // Blocos Google AdSense
+                /<script\b[^>]*>([\s\S]*?)(adsbygoogle|window\.adsbygoogle|amazon-adsystem|popunder)([\s\S]*?)<\/script>/gi, // Inline scripts de anúncios
+                /<iframe\b[^>]*src=["']https?:\/\/[^"']*(adserver|adtech|doubleclick|ads)[^"']*["'][^>]*><\/iframe>/gi // IFrames de anúncios terceiros
+            ];
+
+            // Executa a limpa varrendo o HTML bruto recebido do servidor
+            adPatterns.forEach(pattern => {
+                modifiedHtml = modifiedHtml.replace(pattern, '');
+            });
+
+            // Envia o código limpo e modificado de volta para o cliente carregar
             return res.send(modifiedHtml);
         } else {
             return res.status(500).send('Error: Target responded with an unrenderable data format.');
         }
 
     } catch (error) {
-        // Log explicitly to Vercel Console and gracefully respond to the front-end UI
+        // Envia o log detalhado para o painel de Logs do Vercel para debug rápido
         console.error(`[Proxy Exception]: ${error.message}`);
         return res.status(500).send(`Engine Error: Unable to resolve target node. Details: ${error.message}`);
     }
 });
 
-// Run execution listener ONLY during native local environment development
+// Listener padrão ativado APENAS quando você rodar o projeto localmente (npm start / node server.js)
 if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
-        console.log(`[Proxy Active] Direct access via: http://localhost:${PORT}`);
+        console.log(`[Proxy Active] Local access: http://localhost:${PORT}`);
     });
 }
 
-// Export module engine instance for standard Vercel Serverless Function lifecycle
+// Exporta a instância para o ciclo de vida Serverless da Vercel
 module.exports = app;
+            
