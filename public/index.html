@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aura Engine // Secure Web Virtualization</title>
+    <style>
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-surface: #121216;
+            --border-color: #22222a;
+            --accent-color: #4f46e5;
+            --accent-hover: #6366f1;
+            --text-main: #f4f4f5;
+            --text-muted: #71717a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top Navigation Bar */
+        .nav-container {
+            background-color: var(--bg-surface);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            z-index: 10;
+        }
+
+        .branding {
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            color: var(--text-main);
+            text-transform: uppercase;
+        }
+
+        .address-bar-wrapper {
+            flex: 1;
+            display: flex;
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.25rem 0.5rem;
+            transition: border-color 0.2s ease;
+        }
+
+        .address-bar-wrapper:focus-within {
+            border-color: var(--accent-color);
+        }
+
+        .address-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            padding: 0.5rem;
+        }
+
+        .action-btn {
+            background-color: var(--accent-color);
+            color: var(--text-main);
+            border: none;
+            padding: 0.5rem 1.25rem;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        /* Virtual Viewport Wrapper */
+        .viewport-area {
+            flex: 1;
+            position: relative;
+            background-color: #ffffff;
+        }
+
+        .sandbox-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background-color: #ffffff;
+            display: block;
+        }
+
+        /* UI Overlay Utilities */
+        .status-bar {
+            background-color: var(--bg-surface);
+            border-top: 1px solid var(--border-color);
+            padding: 0.4rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <header class="nav-container">
+        <div class="branding">Aura // Engine</div>
+        <div class="address-bar-wrapper">
+            <input type="text" id="targetUrl" class="address-input" placeholder="Enter target URL securely (e.g., targetsite.com)..." autocomplete="off">
+        </div>
+        <button onclick="requestSecureTunnel()" class="action-btn">Connect</button>
+    </header>
+
+    <main class="viewport-area">
+        <iframe id="secureFrame" class="sandbox-iframe" src="about:blank" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+    </main>
+
+    <footer class="status-bar">
+        <span id="connectionState">Status: Idle</span>
+        <span>Isolated Sandbox Layer v2.1.0</span>
+    </footer>
+
+    <script>
+        async function requestSecureTunnel() {
+            const inputField = document.getElementById('targetUrl');
+            const iframe = document.getElementById('secureFrame');
+            const statusText = document.getElementById('connectionState');
+            
+            let rawUrl = inputField.value.trim();
+            if (!rawUrl) return;
+
+            // Normalize URL format
+            if (!/^https?:\/\//i.test(rawUrl)) {
+                rawUrl = 'https://' + rawUrl;
+            }
+
+            statusText.textContent = `Connecting to isolated node...`;
+            statusText.style.color = 'var(--accent-hover)';
+
+            try {
+                // Route request via the Node.js middleware endpoint
+                const proxyEndpoint = `/proxy?url=${encodeURIComponent(rawUrl)}`;
+                iframe.src = proxyEndpoint;
+                
+                iframe.onload = () => {
+                    statusText.textContent = `Securely tunneled: ${rawUrl}`;
+                    statusText.style.color = '#10b981'; // Success Green
+                };
+            } catch (err) {
+                statusText.textContent = `Tunnel connection failure.`;
+                statusText.style.color = '#ef4444'; // Error Red
+            }
+        }
+
+        // Handle physical key execution
+        document.getElementById('targetUrl').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') requestSecureTunnel();
+        });
+    </script>
+</body>
+  </html>
+  
