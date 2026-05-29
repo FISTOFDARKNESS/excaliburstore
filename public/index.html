@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aura · Enaip Gallery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a; --surface: #111; --border: #222;
+      --accent: #c8a96e; --text: #e8e0d0; --muted: #555; --radius: 4px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px; min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* HEADER */
+    header { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; border-bottom: 1px solid var(--border); background: var(--bg); z-index: 200; flex-shrink: 0; }
+    .logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; letter-spacing: 0.12em; color: var(--accent); }
+    .logo span { color: var(--muted); font-style: italic; }
+    #auth-area { display: flex; align-items: center; gap: 12px; }
+    .btn { padding: 7px 16px; border: 1px solid var(--border); background: transparent; color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.06em; cursor: pointer; border-radius: var(--radius); transition: border-color .2s, color .2s, background .2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn.primary { border-color: var(--accent); color: var(--accent); }
+    .btn.primary:hover { background: var(--accent); color: var(--bg); }
+    .btn.danger { border-color: #8b2020; color: #c04040; }
+    .btn.danger:hover { background: #8b2020; color: #fff; }
+    .user-chip { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
+    .user-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+
+    /* TABS */
+    nav { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); flex-shrink: 0; }
+    .tab { padding: 12px 24px; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: color .2s, border-color .2s; text-transform: uppercase; background: none; border-top: none; border-left: none; border-right: none; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* PAGES */
+    .page { display: none; flex: 1; overflow: hidden; }
+    .page.active { display: flex; flex-direction: column; }
+
+    /* ── PROXY ── */
+    #page-proxy { flex-direction: column; }
+    .proxy-bar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .proxy-bar .url-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 14px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; outline: none; transition: border-color .2s; }
+    .proxy-bar .url-input:focus { border-color: var(--accent); }
+    .proxy-bar .url-input::placeholder { color: var(--muted); }
+    .proxy-bar .go-btn { padding: 8px 20px; background: var(--accent); color: var(--bg); border: none; border-radius: var(--radius); font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; transition: opacity .2s; }
+    .proxy-bar .go-btn:hover { opacity: .85; }
+    .proxy-bar .nav-btn { padding: 7px 12px; background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: var(--radius); font-size: 14px; cursor: pointer; transition: border-color .2s, color .2s; line-height: 1; }
+    .proxy-bar .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+    #proxy-frame { flex: 1; border: none; background: #fff; width: 100%; display: none; }
+    #proxy-placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; color: var(--muted); }
+    #proxy-placeholder .big { font-family: 'Cormorant Garamond', serif; font-size: 48px; color: var(--border); }
+    #proxy-placeholder p { font-size: 12px; letter-spacing: 0.06em; }
+    .quick-links { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+    .quick-link { padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--radius); color: var(--muted); font-size: 11px; cursor: pointer; transition: border-color .2s, color .2s; }
+    .quick-link:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── GALLERY ── */
+    #page-gallery { overflow-y: auto; }
+    .gallery-inner { max-width: 1200px; margin: 0 auto; padding: 36px 32px; width: 100%; }
+
+    /* section headers */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .section-header h2 { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; letter-spacing: 0.05em; color: var(--accent); }
+
+    /* folders grid */
+    #folders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin-bottom: 48px; }
+    .folder-card { border: 1px solid var(--border); padding: 20px; border-radius: var(--radius); cursor: pointer; transition: border-color .2s, background .2s; position: relative; }
+    .folder-card:hover { border-color: var(--accent); background: #141414; }
+    .folder-card .folder-icon { font-size: 22px; margin-bottom: 10px; }
+    .folder-card .folder-name { font-family: 'Cormorant Garamond', serif; font-size: 16px; letter-spacing: 0.04em; margin-bottom: 6px; }
+    .folder-card .folder-members { color: var(--muted); font-size: 10px; line-height: 1.6; }
+    .folder-card .folder-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; opacity: 0; transition: opacity .2s; }
+    .folder-card:hover .folder-actions { opacity: 1; }
+    .icon-btn { width: 26px; height: 26px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); border-radius: var(--radius); cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: border-color .2s, color .2s; }
+    .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .icon-btn.del:hover { border-color: #8b2020; color: #c04040; }
+
+    /* photos */
+    #gallery-view { display: none; }
+    #gallery-view h2 { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; margin-bottom: 6px; color: var(--accent); }
+    .gallery-meta { color: var(--muted); font-size: 11px; margin-bottom: 20px; }
+    #photos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+    .photo-card { aspect-ratio: 1; overflow: hidden; border-radius: var(--radius); border: 1px solid var(--border); cursor: pointer; }
+    .photo-card img { width: 100%; height: 100%; object-fit: cover; transition: transform .4s ease; }
+    .photo-card:hover img { transform: scale(1.05); }
+
+    /* upload */
+    #upload-bar { display: none; margin-bottom: 24px; padding: 16px; border: 1px dashed var(--border); border-radius: var(--radius); background: var(--surface); }
+    #upload-bar label { display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--muted); font-size: 12px; }
+    #upload-bar label:hover { color: var(--accent); }
+    #upload-bar input[type="file"] { display: none; }
+    #upload-status { margin-top: 10px; font-size: 11px; color: var(--accent); }
+
+    /* ── LIGHTBOX ── */
+    #lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.95); z-index: 999; flex-direction: column; align-items: center; justify-content: center; }
+    #lightbox.open { display: flex; }
+    #lightbox-img { max-width: 88vw; max-height: 80vh; object-fit: contain; border-radius: var(--radius); user-select: none; transition: opacity .2s; }
+    .lightbox-bar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: linear-gradient(to bottom, rgba(0,0,0,.7), transparent); }
+    .lightbox-counter { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
+    #lightbox-close { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: var(--radius); width: 32px; height: 32px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: border-color .2s, color .2s; }
+    #lightbox-close:hover { border-color: var(--text); color: var(--text); }
+    .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,.5); border: 1px solid var(--border); color: var(--muted); width: 44px; height: 44px; border-radius: var(--radius); cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; transition: border-color .2s, color .2s; }
+    .lightbox-nav:hover { border-color: var(--accent); color: var(--accent); }
+    #lb-prev { left: 20px; }
+    #lb-next { right: 20px; }
+
+    /* ── MODALS ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 500; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; width: 480px; max-width: 95vw; }
+    .modal h3 { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; color: var(--accent); margin-bottom: 24px; }
+    .field { margin-bottom: 18px; }
+    .field label { display: block; font-size: 11px; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+    .field input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 12px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; outline: none; transition: border-color .2s; }
+    .field input:focus { border-color: var(--accent); }
+    .field input::placeholder { color: var(--muted); }
+
+    /* email tags */
+    .email-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); min-height: 44px; cursor: text; }
+    .email-tag { display: flex; align-items: center; gap: 5px; background: #1a160c; border: 1px solid #4a3a1e; border-radius: 3px; padding: 3px 8px; font-size: 11px; color: var(--accent); }
+    .email-tag .remove-tag { cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; transition: color .15s; }
+    .email-tag .remove-tag:hover { color: #c04040; }
+    .email-tags input { border: none; background: transparent; outline: none; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text); min-width: 180px; flex: 1; padding: 2px 4px; }
+    .email-tags input::placeholder { color: var(--muted); }
+
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+
+    /* util */
+    .state-msg { color: var(--muted); font-size: 12px; padding: 40px 0; text-align: center; letter-spacing: 0.06em; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">aura <span>engine</span></div>
+  <div id="auth-area">
+    <a id="login-btn" class="btn primary" href="/api/auth/google">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      Sign in with Google
+    </a>
+    <div id="user-info" style="display:none">
+      <div class="user-chip"><span class="dot"></span><span id="user-name">—</span></div>
+    </div>
+    <button id="logout-btn" class="btn" style="display:none">Sign out</button>
+  </div>
+</header>
+
+<nav>
+  <button class="tab active" data-tab="proxy">🌐 Web Proxy</button>
+  <button class="tab" data-tab="gallery">◫ Gallery</button>
+</nav>
+
+<!-- PROXY -->
+<div id="page-proxy" class="page active">
+  <div class="proxy-bar">
+    <button class="nav-btn" id="proxy-back">←</button>
+    <button class="nav-btn" id="proxy-forward">→</button>
+    <button class="nav-btn" id="proxy-reload">↺</button>
+    <input class="url-input" id="proxy-url" type="text" placeholder="enter a URL — e.g. wikipedia.org" />
+    <button class="go-btn" id="proxy-go">GO</button>
+  </div>
+  <div id="proxy-placeholder">
+    <div class="big">◎</div>
+    <p>type a URL above and press GO</p>
+    <div class="quick-links">
+      <div class="quick-link" data-url="wikipedia.org">Wikipedia</div>
+      <div class="quick-link" data-url="news.ycombinator.com">Hacker News</div>
+      <div class="quick-link" data-url="translate.google.com">Translate</div>
+      <div class="quick-link" data-url="duckduckgo.com">DuckDuckGo</div>
+      <div class="quick-link" data-url="archive.org">Archive.org</div>
+    </div>
+  </div>
+  <iframe id="proxy-frame"></iframe>
+</div>
+
+<!-- GALLERY -->
+<div id="page-gallery" class="page">
+  <div class="gallery-inner">
+
+    <!-- Folders view -->
+    <div id="folders-view">
+      <div class="section-header">
+        <h2>Collections</h2>
+        <button class="btn primary" id="new-folder-btn">+ New Collection</button>
+      </div>
+      <div id="folders-grid"><p class="state-msg">loading…</p></div>
+    </div>
+
+    <!-- Photos view -->
+    <div id="gallery-view">
+      <button class="btn" id="back-btn" style="margin-bottom:20px">← back</button>
+      <h2 id="gallery-title">—</h2>
+      <p class="gallery-meta" id="gallery-meta">—</p>
+      <div id="upload-bar">
+        <label>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          click to upload images
+          <input type="file" id="file-input" accept="image/*" multiple />
+        </label>
+        <div id="upload-status"></div>
+      </div>
+      <div id="photos-grid"><p class="state-msg">—</p></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div id="lightbox">
+  <div class="lightbox-bar">
+    <span class="lightbox-counter" id="lb-counter">1 / 1</span>
+    <button id="lightbox-close">×</button>
+  </div>
+  <button class="lightbox-nav" id="lb-prev">‹</button>
+  <img id="lightbox-img" src="" alt="" />
+  <button class="lightbox-nav" id="lb-next">›</button>
+</div>
+
+<!-- MODAL: New / Edit Folder -->
+<div class="modal-overlay" id="folder-modal">
+  <div class="modal">
+    <h3 id="modal-title">New Collection</h3>
+    <div class="field">
+      <label>Collection Name</label>
+      <input type="text" id="folder-name-input" placeholder="e.g. Graphic Design 2024" />
+    </div>
+    <div class="field">
+      <label>Allowed Uploaders (press Enter or comma to add)</label>
+      <div class="email-tags" id="email-tags-container">
+        <input type="text" id="email-tag-input" placeholder="nome@enaip.piemonte.it" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="modal-cancel">Cancel</button>
+      <button class="btn primary" id="modal-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentUser   = null;
+let currentFolder = null;
+let currentPhotos = [];
+let lbIndex       = 0;
+let editingFolder = null; // folder being edited
+let emailTags     = [];
+let proxyHistory  = [];
+let proxyIndex    = -1;
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+function loadUser() {
+  try { const r = localStorage.getItem('aura_user'); if (r) currentUser = JSON.parse(r); } catch { currentUser = null; }
+}
+function renderAuth() {
+  const show = !!currentUser;
+  document.getElementById('login-btn').style.display  = show ? 'none' : 'inline-flex';
+  document.getElementById('user-info').style.display  = show ? 'flex'  : 'none';
+  document.getElementById('logout-btn').style.display = show ? 'inline-flex' : 'none';
+  if (show) document.getElementById('user-name').textContent = currentUser.email;
+}
+document.getElementById('logout-btn').addEventListener('click', () => {
+  localStorage.removeItem('aura_user'); currentUser = null; renderAuth();
+});
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('page-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Proxy ─────────────────────────────────────────────────────────────────────
+const urlInput    = document.getElementById('proxy-url');
+const frame       = document.getElementById('proxy-frame');
+const placeholder = document.getElementById('proxy-placeholder');
+
+function navigate(url) {
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  urlInput.value = url;
+  frame.src = '/proxy?url=' + encodeURIComponent(url);
+  frame.style.display = 'block';
+  placeholder.style.display = 'none';
+  proxyHistory = proxyHistory.slice(0, proxyIndex + 1);
+  proxyHistory.push(url); proxyIndex = proxyHistory.length - 1;
+}
+document.getElementById('proxy-go').addEventListener('click', () => navigate(urlInput.value.trim()));
+urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') navigate(urlInput.value.trim()); });
+document.getElementById('proxy-back').addEventListener('click', () => { if (proxyIndex > 0) { proxyIndex--; navigate(proxyHistory[proxyIndex]); } });
+document.getElementById('proxy-forward').addEventListener('click', () => { if (proxyIndex < proxyHistory.length - 1) { proxyIndex++; navigate(proxyHistory[proxyIndex]); } });
+document.getElementById('proxy-reload').addEventListener('click', () => { if (proxyIndex >= 0) navigate(proxyHistory[proxyIndex]); });
+document.querySelectorAll('.quick-link').forEach(el => el.addEventListener('click', () => navigate(el.dataset.url)));
+
+// ── Folder Modal ──────────────────────────────────────────────────────────────
+function openFolderModal(folder = null) {
+  editingFolder = folder;
+  emailTags = folder ? [...(folder.allowedCreators || [folder.allowedCreator].filter(Boolean))] : [];
+  document.getElementById('modal-title').textContent      = folder ? 'Edit Collection' : 'New Collection';
+  document.getElementById('folder-name-input').value      = folder ? folder.name : '';
+  document.getElementById('email-tag-input').value        = '';
+  renderEmailTags();
+  document.getElementById('folder-modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('folder-modal').classList.remove('open');
+  editingFolder = null; emailTags = [];
+}
+document.getElementById('modal-cancel').addEventListener('click', closeModal);
+document.getElementById('folder-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+document.getElementById('new-folder-btn').addEventListener('click', () => openFolderModal());
+
+function renderEmailTags() {
+  const container = document.getElementById('email-tags-container');
+  // remove old tags (keep input)
+  container.querySelectorAll('.email-tag').forEach(t => t.remove());
+  const input = document.getElementById('email-tag-input');
+  emailTags.forEach(email => {
+    const tag = document.createElement('div');
+    tag.className = 'email-tag';
+    tag.innerHTML = `<span>${email}</span><span class="remove-tag" data-email="${email}">×</span>`;
+    tag.querySelector('.remove-tag').addEventListener('click', () => { emailTags = emailTags.filter(e => e !== email); renderEmailTags(); });
+    container.insertBefore(tag, input);
+  });
+}
+function addEmailTag(val) {
+  const email = val.trim().toLowerCase();
+  if (!email) return;
+  if (!email.endsWith('@enaip.piemonte.it')) { alert('Only @enaip.piemonte.it emails allowed.'); return; }
+  if (!emailTags.includes(email)) { emailTags.push(email); renderEmailTags(); }
+  document.getElementById('email-tag-input').value = '';
+}
+document.getElementById('email-tags-container').addEventListener('click', () => document.getElementById('email-tag-input').focus());
+document.getElementById('email-tag-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addEmailTag(e.target.value); }
+  if (e.key === 'Backspace' && !e.target.value && emailTags.length) { emailTags.pop(); renderEmailTags(); }
+});
+document.getElementById('email-tag-input').addEventListener('blur', e => { if (e.target.value.trim()) addEmailTag(e.target.value); });
+
+document.getElementById('modal-save').addEventListener('click', async () => {
+  const name = document.getElementById('folder-name-input').value.trim();
+  if (!name) { alert('Collection name is required.'); return; }
+  if (!emailTags.length) { alert('Add at least one allowed uploader.'); return; }
+
+  const payload = { name, allowedCreators: emailTags };
+  try {
+    let res;
+    if (editingFolder) {
+      res = await fetch(`/api/folders/${editingFolder.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    } else {
+      res = await fetch('/api/folders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    }
+    if (!res.ok) throw new Error(await res.text());
+    closeModal();
+    loadFolders();
+  } catch (err) { alert('Error: ' + err.message); }
+});
+
+// ── Folders ───────────────────────────────────────────────────────────────────
+async function loadFolders() {
+  const grid = document.getElementById('folders-grid');
+  grid.innerHTML = '<p class="state-msg">loading…</p>';
+  try {
+    const folders = await (await fetch('/api/folders')).json();
+    if (!folders.length) { grid.innerHTML = '<p class="state-msg">no collections yet — create one above</p>'; return; }
+    grid.innerHTML = folders.map(f => {
+      const members = (f.allowedCreators || [f.allowedCreator]).filter(Boolean);
+      return `
+      <div class="folder-card" data-id="${f.id}">
+        <div class="folder-actions">
+          <button class="icon-btn edit-btn" title="Edit">✎</button>
+          <button class="icon-btn del del-btn" title="Delete">✕</button>
+        </div>
+        <div class="folder-icon">◫</div>
+        <div class="folder-name">${f.name}</div>
+        <div class="folder-members">${members.join('<br>')}</div>
+      </div>`;
+    }).join('');
+
+    // store folder data on each card for easy access
+    grid.querySelectorAll('.folder-card').forEach((card, i) => {
+      const folder = folders[i];
+      card.querySelector('.edit-btn').addEventListener('click', e => { e.stopPropagation(); openFolderModal(folder); });
+      card.querySelector('.del-btn').addEventListener('click', e => { e.stopPropagation(); deleteFolder(folder); });
+      card.addEventListener('click', () => openGallery(folder));
+    });
+  } catch { grid.innerHTML = '<p class="state-msg">failed to load collections</p>'; }
+}
+
+async function deleteFolder(folder) {
+  if (!confirm(`Delete "${folder.name}"? This cannot be undone.`)) return;
+  try {
+    await fetch(`/api/folders/${folder.id}`, { method: 'DELETE' });
+    loadFolders();
+  } catch (err) { alert('Error: ' + err.message); }
+}
+
+// ── Gallery ───────────────────────────────────────────────────────────────────
+async function openGallery(folder) {
+  currentFolder = folder;
+  document.getElementById('folders-view').style.display = 'none';
+  document.getElementById('gallery-view').style.display = 'block';
+  document.getElementById('gallery-title').textContent = folder.name;
+
+  const members = (folder.allowedCreators || [folder.allowedCreator]).filter(Boolean);
+  document.getElementById('gallery-meta').textContent = `uploaders: ${members.join(', ')}`;
+
+  const canUpload = currentUser && members.includes(currentUser.email);
+  document.getElementById('upload-bar').style.display = canUpload ? 'block' : 'none';
+
+  loadPhotos(folder.id);
+}
+
+async function loadPhotos(folderId) {
+  const grid = document.getElementById('photos-grid');
+  grid.innerHTML = '<p class="state-msg">loading…</p>';
+  try {
+    currentPhotos = await (await fetch(`/api/photos?folderId=${folderId}`)).json();
+    if (!currentPhotos.length) { grid.innerHTML = '<p class="state-msg">no photos in this collection</p>'; return; }
+    grid.innerHTML = currentPhotos.map((url, i) => `
+      <div class="photo-card" data-index="${i}">
+        <img src="${url}" loading="lazy" alt="" />
+      </div>`).join('');
+    grid.querySelectorAll('.photo-card').forEach(card => {
+      card.addEventListener('click', () => openLightbox(parseInt(card.dataset.index)));
+    });
+  } catch { grid.innerHTML = '<p class="state-msg">failed to load photos</p>'; }
+}
+
+document.getElementById('back-btn').addEventListener('click', () => {
+  document.getElementById('gallery-view').style.display = 'none';
+  document.getElementById('folders-view').style.display = 'block';
+  currentFolder = null; currentPhotos = [];
+});
+
+// ── Upload ────────────────────────────────────────────────────────────────────
+document.getElementById('file-input').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files);
+  const status = document.getElementById('upload-status');
+  if (!files.length || !currentFolder) return;
+  for (const file of files) {
+    status.textContent = `uploading ${file.name}…`;
+    const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folderId: currentFolder.id, filename: file.name, content: b64.split(',')[1] }) });
+      status.textContent = res.ok ? `✓ ${file.name} uploaded` : `✗ ${await res.text()}`;
+    } catch (err) { status.textContent = `✗ ${err.message}`; }
+  }
+  e.target.value = '';
+  setTimeout(() => { status.textContent = ''; loadPhotos(currentFolder.id); }, 1500);
+});
+
+// ── Lightbox ──────────────────────────────────────────────────────────────────
+function openLightbox(index) {
+  lbIndex = index;
+  showLbPhoto();
+  document.getElementById('lightbox').classList.add('open');
+}
+function showLbPhoto() {
+  document.getElementById('lightbox-img').src = currentPhotos[lbIndex];
+  document.getElementById('lb-counter').textContent = `${lbIndex + 1} / ${currentPhotos.length}`;
+}
+document.getElementById('lb-prev').addEventListener('click', () => { lbIndex = (lbIndex - 1 + currentPhotos.length) % currentPhotos.length; showLbPhoto(); });
+document.getElementById('lb-next').addEventListener('click', () => { lbIndex = (lbIndex + 1) % currentPhotos.length; showLbPhoto(); });
+document.getElementById('lightbox-close').addEventListener('click', () => document.getElementById('lightbox').classList.remove('open'));
+document.getElementById('lightbox').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('open'); });
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('lightbox').classList.contains('open')) return;
+  if (e.key === 'ArrowLeft')  { lbIndex = (lbIndex - 1 + currentPhotos.length) % currentPhotos.length; showLbPhoto(); }
+  if (e.key === 'ArrowRight') { lbIndex = (lbIndex + 1) % currentPhotos.length; showLbPhoto(); }
+  if (e.key === 'Escape')     { document.getElementById('lightbox').classList.remove('open'); }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadUser();
+renderAuth();
+loadFolders();
+</script>
+</body>
+</html>
