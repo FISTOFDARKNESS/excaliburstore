@@ -7,12 +7,17 @@ const PORT    = process.env.PORT || 3000;
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ── Config ────────────────────────────────────────────────────────────────────
-const GITHUB_TOKEN         = process.env.GITHUB_TOKEN         || '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';
+// ── Config (uses env vars, NO hardcoded values) ────────────────────────────────
+const GITHUB_TOKEN         = process.env.GITHUB_TOKEN;
 const REPO_OWNER           = process.env.REPO_OWNER           || 'FISTOFDARKNESS';
 const REPO_NAME            = process.env.REPO_NAME            || 'excaliburstore';
 const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     || '308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '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';
+
+// Check if token exists
+if (!GITHUB_TOKEN) {
+  console.warn('⚠️  WARNING: GITHUB_TOKEN environment variable not set. Upload will fail.');
+}
 
 const getRedirectUri = (req) => {
   const host = req.get('host');
@@ -124,6 +129,7 @@ app.delete('/api/folders/:id', (req, res) => {
 app.get('/api/photos', async (req, res) => {
   const { folderId } = req.query;
   if (!folderId) return res.status(400).send('Folder ID missing.');
+  if (!GITHUB_TOKEN) return res.status(500).send('GitHub token not configured.');
   try {
     const { data } = await axios.get(
       `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/gallery/${folderId}`,
@@ -135,10 +141,14 @@ app.get('/api/photos', async (req, res) => {
 
 // ── Upload ────────────────────────────────────────────────────────────────────
 app.post('/api/upload', async (req, res) => {
+  if (!GITHUB_TOKEN) return res.status(500).send('GitHub token not configured in environment variables.');
+  
   const { folderId, filename, content } = req.body;
   if (!folderId || !filename || !content) return res.status(400).send('Payload incomplete.');
+  
   const clean   = `${Date.now()}_${filename.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
   const ghHeaders = { Authorization: `token ${GITHUB_TOKEN}`, Accept: 'application/vnd.github.v3+json' };
+  
   try {
     // Check if folder exists on GitHub — if not, create it with a .gitkeep
     try {
