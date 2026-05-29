@@ -137,15 +137,37 @@ app.get('/api/photos', async (req, res) => {
 app.post('/api/upload', async (req, res) => {
   const { folderId, filename, content } = req.body;
   if (!folderId || !filename || !content) return res.status(400).send('Payload incomplete.');
-  const clean = `${Date.now()}_${filename.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
+  const clean   = `${Date.now()}_${filename.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
+  const ghHeaders = { Authorization: `token ${GITHUB_TOKEN}`, Accept: 'application/vnd.github.v3+json' };
   try {
+    // Check if folder exists on GitHub — if not, create it with a .gitkeep
+    try {
+      await axios.get(
+        `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/gallery/${folderId}`,
+        { headers: ghHeaders }
+      );
+    } catch (checkErr) {
+      if (checkErr.response && checkErr.response.status === 404) {
+        // Folder doesn't exist — initialise it
+        await axios.put(
+          `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/gallery/${folderId}/.gitkeep`,
+          { message: `Init folder: ${folderId}`, content: '', branch: 'main' },
+          { headers: ghHeaders }
+        );
+      }
+    }
+
+    // Upload the actual file
     await axios.put(
       `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/gallery/${folderId}/${clean}`,
       { message: `Upload via Aura Engine: ${clean}`, content, branch: 'main' },
-      { headers: { Authorization: `token ${GITHUB_TOKEN}`, Accept: 'application/vnd.github.v3+json' } }
+      { headers: ghHeaders }
     );
     res.status(200).send('Asset synchronized successfully.');
-  } catch (err) { res.status(500).send(`Storage error: ${err.message}`); }
+  } catch (err) {
+    const detail = err.response ? JSON.stringify(err.response.data) : err.message;
+    res.status(500).send(`Storage error: ${detail}`);
+  }
 });
 
 // ── SPA fallback ──────────────────────────────────────────────────────────────
