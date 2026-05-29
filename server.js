@@ -13,9 +13,13 @@ const REPO_NAME = 'excaliburstore';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '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';
-const REDIRECT_URI = process.env.NODE_ENV === 'production' 
-    ? 'https://excaliburlinks.vercel.app/api/auth/callback' 
-    : 'http://localhost:3000/api/auth/callback';
+
+// Função para gerar o REDIRECT_URI dinamicamente com base no domínio atual
+const getRedirectUri = (req) => {
+    const host = req.get('host');
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    return `${protocol}://${host}/api/auth/callback`;
+};
 
 let foldersRegistry = [
     { id: "design-core", name: "Enaip Graphic Design", allowedCreator: "admin@enaip.piemonte.it" }
@@ -29,7 +33,7 @@ app.get('/proxy', async (req, res) => {
     try {
         const response = await axios.get(targetUrl, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, Gecko) Chrome/122.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
             },
             responseType: 'text',
@@ -62,7 +66,8 @@ app.get('/proxy', async (req, res) => {
 });
 
 app.get('/api/auth/google', (req, res) => {
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=profile%20email`;
+    const redirectUri = getRedirectUri(req);
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=profile%20email`;
     res.redirect(url);
 });
 
@@ -71,11 +76,12 @@ app.get('/api/auth/callback', async (req, res) => {
     if (!code) return res.status(400).send('Authorization code missing.');
 
     try {
+        const redirectUri = getRedirectUri(req);
         const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
             code,
             client_id: GOOGLE_CLIENT_ID,
             client_secret: GOOGLE_CLIENT_SECRET,
-            redirect_uri: REDIRECT_URI,
+            redirect_uri: redirectUri,
             grant_type: 'authorization_code'
         });
 
@@ -165,9 +171,9 @@ app.get('/photos', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Mantido apenas em escuta local se não for produção Vercel
 if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => console.log(`Active: http://localhost:${PORT}`));
 }
 
 module.exports = app;
-    
