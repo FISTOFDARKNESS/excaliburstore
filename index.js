@@ -8,7 +8,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const GITHUB_TOKEN         = process.env.GITHUB_TOKEN         || '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';
+const GITHUB_TOKEN         = process.env.GITHUB_TOKEN         || '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';
 const REPO_OWNER           = process.env.REPO_OWNER           || 'FISTOFDARKNESS';
 const REPO_NAME            = process.env.REPO_NAME            || 'excaliburstore';
 const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     || '308189275559-463hh72v4qto39ike23emrtc4r51galf.apps.googleusercontent.com';
