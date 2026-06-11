@@ -1,0 +1,21 @@
+{
+  "id": "index",
+  "title": "index",
+  "tagline": "Play the amazing build from index.html!",
+  "description": "dnddn",
+  "category": "Action",
+  "tags": [
+    "Indie",
+    "Featured"
+  ],
+  "version": "1.0.0",
+  "author": "shd",
+  "rating": 5,
+  "downloadUrl": "#",
+  "downloadCount": 0,
+  "imageUrl": "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop&q=60",
+  "githubUrl": "https://github.com/FISTOFDARKNESS/excaliburstore",
+  "createdAt": "2026-06-11T19:35:30.509Z",
+  "allowDownload": false,
+  "allowRepoVisit": false
+}
