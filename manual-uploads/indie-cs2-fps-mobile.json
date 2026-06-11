@@ -1,0 +1,19 @@
+{
+  "id": "cs2-fps-mobile",
+  "title": "cs2 fps mobile",
+  "tagline": "Play the amazing build from cs2_fps_mobile.html!",
+  "description": "br",
+  "category": "Action",
+  "tags": [
+    "Indie",
+    "Featured"
+  ],
+  "version": "1.0.0",
+  "author": "nigge",
+  "rating": 5,
+  "downloadUrl": "#",
+  "downloadCount": 0,
+  "imageUrl": "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop&q=60",
+  "githubUrl": "https://github.com/FISTOFDARKNESS/excaliburstore",
+  "createdAt": "2026-06-11T19:26:12.428Z"
+}
